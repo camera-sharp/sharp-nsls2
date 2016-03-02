@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import h5py
 
-
 # INPUT ##################################################
 
 d = '../../data/d1/'
