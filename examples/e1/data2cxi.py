@@ -114,5 +114,5 @@ data_1["translation"] = h5py.SoftLink('/entry_1/sample_1/geometry_1/translation'
 f.close()
 
 # Try to reconstruct with
-# sharp.bin  -o 1 -i 100  e1.cxi
+# sharp-nsls2.bin  -o 1 -i 100  e1.cxi
 # show.py
