@@ -65,10 +65,9 @@ mark_as_advanced(CUDA_HOST_COMPILER)
 find_package(THRUST REQUIRED)
 mark_as_advanced(THRUST_INCLUDE_DIR)
 
-if(SHARP_DIR)
-else(SHARP_DIR)
+if(NOT SHARP_DIR)
   set(SHARP_DIR $ENV{SHARP_HOME})
-endif(SHARP_DIR)
+endif()
 
 find_package(SHARP)
 include_directories(${SHARP_INCLUDE_DIR})

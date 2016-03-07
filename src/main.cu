@@ -57,6 +57,7 @@ int main(int argc, char ** argv){
     solver.run(opt->iterations);
     solver.writeImage(std::string(buffer));
   }
+
   Counter::getCounter()->printTotals(communicator.getRank());
   return 0;  
 }
