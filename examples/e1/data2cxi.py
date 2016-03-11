@@ -24,6 +24,10 @@ probe = np.load(probeFile) # (384, 384)
 shape = probe.shape
 det_side = shape[1] # Detector side in pixels
 
+nx = probe.shape[0]
+ny = probe.shape[1]
+initial_probe = probe # abs(probe) * np.exp(np.random.uniform(0, 0.5, (nx, ny))*1.j)
+
 # SCAN 
 
 points = np.load(scanFile)
@@ -41,6 +45,7 @@ nframes = X.size
 # OBJECT
 
 object = np.load(objectFile) # (1170, 1172)
+object = object[0: object.shape[0] - 61, 62: object.shape[1]]
 # plt.imshow(abs(object))
 # plt.savefig('object.png')
 
@@ -58,6 +63,7 @@ for i in range(0,nframes):
 wavelength = 1.98644e-25/energy
 distance   = (det_side * pixel_size * real_pixel_size)/ wavelength
 
+# required by the cxi interface, but it is not used
 corner_pos = [det_side/2*pixel_size,det_side/2*pixel_size,distance]
 
 ##########################################################
@@ -84,8 +90,8 @@ geometry_1.create_dataset("translation", data=real_translation) # in meters
 instrument_1 = entry_1.create_group("instrument_1")
 
 # 2.1 detector_1: distance, corner_position, x_pixel_size, y_pixel_size
-# translation, data and axes, probe_mask
-#'entry_1/instrument_1/detector_1/probe_mask'
+# translation, data and axes, solution, initial image
+
 detector_1 = instrument_1.create_group("detector_1")
 detector_1.create_dataset("distance", data=distance) # in meters
 detector_1.create_dataset("corner_position", data=corner_pos) # in meters
@@ -97,12 +103,15 @@ detector_1["translation"] = h5py.SoftLink('/entry_1/sample_1/geometry_1/translat
 data = detector_1.create_dataset("data",data=frames)
 data.attrs['axes'] = "translation:y:x"
 
-# 2.2 source_1: energy
+# detector_1.create_dataset("solution",data=object)
+# detector_1.create_dataset("initial_image",data=object)
+
+# 2.2 source_1: energy, initial probe
 
 source_1 = instrument_1.create_group("source_1")
 source_1.create_dataset("energy", data=energy) # in J
 
-source_1.create_dataset("probe",data=probe)
+# source_1.create_dataset("probe", data=initial_probe)
 
 # 2.3 data_1: data, translationcd ..
 

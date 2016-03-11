@@ -2,7 +2,7 @@
 #include <input_output.h>
 #include <communicator.h>
 #include <strategy.h>
-#include <nsls2_engine.h>
+#include <engine_epie.h>
 #include <solver.h>
 #include <string>
 #include <unistd.h>
@@ -18,7 +18,7 @@ int main(int argc, char ** argv){
   opt->parse_args(argc,argv);
 
   /*! initialize engine */
-  CudaEngineNSLS2 engine;
+  CudaEngineEPIE engine;
   engine.setWrapAround(opt->wrapAround);
   Communicator communicator(argc, argv,&engine);  
 

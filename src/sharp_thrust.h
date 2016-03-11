@@ -57,6 +57,21 @@ struct AbsSubtract3 : public thrust::unary_function<T,float>
 };
 
 /*!
+ * @brief thrust unary function that performs subtract and returns
+ * square root of absolute value
+ */
+template <typename T>
+struct Subtract2 : public thrust::unary_function<T,float>
+{
+  __host__ __device__
+  float operator()(T x)
+  {  
+    float ret = cusp::abs(thrust::get<0>(x)-thrust::get<1>(x));
+    return ret*ret;
+  }
+};
+
+/*!
  * @brief add not negative finite value
  */
 template <typename T>
@@ -301,6 +316,37 @@ struct ComputeImageResidual
     return out;
   }
 };
+
+/********************** Start of convenience functions ************************/
+
+/*! Add two vectors, c = a+b */
+template <typename T, typename T2, typename T3>
+static void add(const T & a, const T2 & b, T3 & c){
+  thrust::transform(a.begin(), a.end(), b.begin(), c.begin(),
+		    thrust::plus<typename T3::value_type>());
+}
+
+/*! Subtract two vectors, c = a-b */
+template <typename T, typename T2, typename T3>
+static void subtract(const T & a, const T2 & b, T3 & c){
+  thrust::transform(a.begin(), a.end(), b.begin(), c.begin(),
+		    thrust::minus<typename T3::value_type>());
+}
+
+/*! Multiply two vectors, c = a*b */
+template <typename T, typename T2, typename T3>
+static void multiply(const T & a, const T2 & b, T3 & c){
+  thrust::transform(a.begin(), a.end(), b.begin(), c.begin(),
+		    thrust::multiplies<typename T3::value_type>());
+}
+
+/*! Multiply a vector by the conjugate of another, c = a*conj(b) */
+template <typename T, typename T2, typename T3>
+static void conjugateMultiply(const T & a, const T2 & b, T3 & c){
+  thrust::transform(a.begin(), a.end(), b.begin(), c.begin(),
+		    ConjugateMultiply<typename T3::value_type>());
+}
+
 
 
 }
