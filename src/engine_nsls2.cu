@@ -40,8 +40,9 @@ struct Norm : public thrust::unary_function<T, float>{
 
 CudaEngineNSLS2::CudaEngineNSLS2()
  : CudaEngine(){ 
-   m_start_update_probe  = 0;
+
    m_start_update_object = 0;
+   m_start_update_probe  = 2;
 
    m_alpha = 1.e-8;
    m_beta = 1.0;
@@ -149,13 +150,14 @@ void CudaEngineNSLS2::iterate(int steps){
 
     if(m_iteration >= m_start_update_probe) {
       if(m_iteration >= m_start_update_object) {
-          // cal_object_trans(m_frames_iterate, do_sync);
+          cal_object_trans(m_frames_iterate, do_sync);
           cal_probe_trans(m_frames_iterate, prb_obj, tmp, tmp2);
-      } // else {
+      } else {
           cal_probe_trans(m_frames_iterate, prb_obj, tmp, tmp2);
+      }
     } else {
       if(m_iteration >= m_start_update_object){
-          // cal_object_trans(m_frames_iterate, do_sync);
+          cal_object_trans(m_frames_iterate, do_sync);
       }
     }
   
