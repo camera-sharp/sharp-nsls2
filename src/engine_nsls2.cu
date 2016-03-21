@@ -149,13 +149,13 @@ void CudaEngineNSLS2::iterate(int steps){
 
     if(m_iteration >= m_start_update_probe) {
       if(m_iteration >= m_start_update_object) {
-          cal_object_trans(m_frames_iterate, do_sync);
-          // cal_probe_trans(m_frames_iterate, prb_obj, tmp, tmp2);
+          // cal_object_trans(m_frames_iterate, do_sync);
+          cal_probe_trans(m_frames_iterate, prb_obj, tmp, tmp2);
       } // else {
-          // cal_probe_trans(m_frames_iterate, prb_obj, tmp, tmp2);
+          cal_probe_trans(m_frames_iterate, prb_obj, tmp, tmp2);
     } else {
       if(m_iteration >= m_start_update_object){
-          cal_object_trans(m_frames_iterate, do_sync);
+          // cal_object_trans(m_frames_iterate, do_sync);
       }
     }
   
@@ -193,6 +193,17 @@ void CudaEngineNSLS2::iterate(int steps){
 
 
 // 
+
+void CudaEngineNSLS2::cal_object_trans(const DeviceRange<cusp::complex<float> > & input_frames,
+				bool global_sync){
+  if(global_sync){
+    frameOverlapNormalize(input_frames.data(), m_global_image_scale.data(), m_image.data());
+    m_comm->allSum(m_image);
+  }else{
+    frameOverlapNormalize(input_frames.data(), m_image_scale.data(), m_image.data());
+  }
+
+}
 
 void CudaEngineNSLS2::cal_probe_trans(const DeviceRange<cusp::complex<float> > & frames_data, 
      const DeviceRange<cusp::complex<float> > & frames_object,
@@ -254,14 +265,85 @@ void CudaEngineNSLS2::cal_probe_trans(const DeviceRange<cusp::complex<float> > &
         obj_update /= norm_probe_array
 */
 
-void CudaEngineNSLS2::cal_object_trans(const DeviceRange<cusp::complex<float> > & input_frames,
-				bool global_sync){
-  if(global_sync){
-    frameOverlapNormalize(input_frames.data(), m_global_image_scale.data(), m_image.data());
-    m_comm->allSum(m_image);
-  }else{
-    frameOverlapNormalize(input_frames.data(), m_image_scale.data(), m_image.data());
-  }
+double CudaEngineNSLS2::cal_obj_error(const DeviceRange<cusp::complex<float> > & obj_old){
+
+  // self.error_obj[it] = np.sqrt(np.sum(np.abs(self.obj - self.obj_old)**2)) / \
+  //             np.sqrt(np.sum(np.abs(self.obj)**2))
+
+   double diff_error = sqrt(thrust::transform_reduce(zip2(m_image, obj_old),
+		AbsDiff2<thrust::tuple<cusp::complex<float>, cusp::complex<float> > >(), 
+		float(0),
+		thrust::plus<float>()));
+
+   double norm = sqrt(thrust::transform_reduce(m_image.begin(), m_image.end(),
+		Norm< cusp::complex<float> >(), 
+		float(0),
+		thrust::plus<float>()));
+
+   return diff_error/norm;
+}
+
+double CudaEngineNSLS2::cal_prb_error(const DeviceRange<cusp::complex<float> > & prb_old){
+
+   // self.error_prb[it] = np.sqrt(np.sum(np.abs(self.prb - self.prb_old)**2)) / \
+   //       np.sqrt(np.sum(np.abs(self.prb)**2))
+
+   double diff_error = sqrt(thrust::transform_reduce(zip2(m_illumination, prb_old),
+		AbsDiff2<thrust::tuple<cusp::complex<float>, cusp::complex<float> > >(), 
+		float(0),
+		thrust::plus<float>()));
+
+   double norm = sqrt(thrust::transform_reduce(m_illumination.begin(), m_illumination.end(),
+		Norm< cusp::complex<float> >(), 
+		float(0),
+		thrust::plus<float>()));
+
+   return diff_error/norm;
+}
+
+double CudaEngineNSLS2::cal_chi_error(const DeviceRange<cusp::complex<float> > & image,
+       const DeviceRange<cusp::complex<float> > & tmp){
+
+   // chi_tmp = 0.
+   // for i, (x_start, x_end, y_start, y_end) in enumerate(self.point_info):
+   //      tmp = np.abs(fftn(self.prb*self.obj[x_start:x_end, y_start:y_end])/np.sqrt(1.*self.nx_prb*self.ny_prb))
+   //      chi_tmp = chi_tmp + np.sum((tmp - self.diff_array[i])**2)/(np.sum((self.diff_array[i])**2))
+   // self.error_chi[it] = np.sqrt(chi_tmp/self.num_points)
+
+   imageSplitIlluminate(image.data(), tmp.data());  
+   fftFrames(tmp.data(), tmp.data(), FFT_FORWARD);
+   cusp::blas::detail::scal(tmp.begin(), tmp.end(), 1.0f/sqrtf(m_frame_width*m_frame_height));
+
+   double err = sqrt(thrust::transform_reduce(zip2(tmp, m_frames),
+				AbsSubtract2<thrust::tuple<cusp::complex<float>,float> >(), 
+				float(0),
+				thrust::plus<float>()))/m_frames_norm;
+
+   return err;
+}
+
+double CudaEngineNSLS2::cal_sol_error(){
+
+   double diff_error = sqrt(thrust::transform_reduce(zip2(m_image, m_solution),
+		AbsDiff2<thrust::tuple<cusp::complex<float>, cusp::complex<float> > >(), 
+		float(0),
+		thrust::plus<float>()));
+
+   double norm = sqrt(thrust::transform_reduce(m_solution.begin(), m_solution.end(),
+		Norm< cusp::complex<float> >(), 
+		float(0),
+		thrust::plus<float>()));
+
+   return diff_error/norm;
+}
+
+// 
+
+void CudaEngineNSLS2::calcDataProjector(const DeviceRange<cusp::complex<float> > & input_frames,
+				        const DeviceRange<cusp::complex<float> > & output_frames,
+				        float * output_residual){
+
+   dataProjector(input_frames, output_frames, output_residual);
 
 }
 
@@ -331,6 +413,17 @@ int  CudaEngineNSLS2::printDiagmostics(float data_residual, float overlap_residu
       return success;
 }
 
+void CudaEngineNSLS2::printSummary(int success){
+
+    if(success){
+      sharp_log("Success in %d iterations...residuals beat (%e,%e,%e)", 
+		m_iteration, m_data_tolerance, m_overlap_tolerance, m_solution_tolerance);
+    }else{
+      sharp_log("Maximum iteration exceeded. residual tolerances not reached (%e,%e,%e)", 
+		m_data_tolerance, m_overlap_tolerance, m_solution_tolerance);
+    }
+}
+
 double  CudaEngineNSLS2::compareImageSolution(){
 
 	  // we need to compute a weighted sum and figure out the global phase difference
@@ -364,94 +457,7 @@ double  CudaEngineNSLS2::compareImageSolution(){
 	  return image_residual;
 }
 
-void CudaEngineNSLS2::printSummary(int success){
 
-    if(success){
-      sharp_log("Success in %d iterations...residuals beat (%e,%e,%e)", 
-		m_iteration, m_data_tolerance, m_overlap_tolerance, m_solution_tolerance);
-    }else{
-      sharp_log("Maximum iteration exceeded. residual tolerances not reached (%e,%e,%e)", 
-		m_data_tolerance, m_overlap_tolerance, m_solution_tolerance);
-    }
-}
 
-void CudaEngineNSLS2::calcDataProjector(const DeviceRange<cusp::complex<float> > & input_frames,
-				        const DeviceRange<cusp::complex<float> > & output_frames,
-				        float * output_residual){
 
-   dataProjector(input_frames, output_frames, output_residual);
-
-}
-
-double CudaEngineNSLS2::cal_obj_error(const DeviceRange<cusp::complex<float> > & obj_old){
-
-  // self.error_obj[it] = np.sqrt(np.sum(np.abs(self.obj - self.obj_old)**2)) / \
-  //             np.sqrt(np.sum(np.abs(self.obj)**2))
-
-   double diff_error = sqrt(thrust::transform_reduce(zip2(m_image, obj_old),
-		AbsDiff2<thrust::tuple<cusp::complex<float>, cusp::complex<float> > >(), 
-		float(0),
-		thrust::plus<float>()));
-
-   double norm = sqrt(thrust::transform_reduce(m_image.begin(), m_image.end(),
-		Norm< cusp::complex<float> >(), 
-		float(0),
-		thrust::plus<float>()));
-
-   return diff_error/norm;
-}
-
-double CudaEngineNSLS2::cal_sol_error(){
-
-   double diff_error = sqrt(thrust::transform_reduce(zip2(m_image, m_solution),
-		AbsDiff2<thrust::tuple<cusp::complex<float>, cusp::complex<float> > >(), 
-		float(0),
-		thrust::plus<float>()));
-
-   double norm = sqrt(thrust::transform_reduce(m_solution.begin(), m_solution.end(),
-		Norm< cusp::complex<float> >(), 
-		float(0),
-		thrust::plus<float>()));
-
-   return diff_error/norm;
-}
-
-double CudaEngineNSLS2::cal_prb_error(const DeviceRange<cusp::complex<float> > & prb_old){
-
-   // self.error_prb[it] = np.sqrt(np.sum(np.abs(self.prb - self.prb_old)**2)) / \
-   //       np.sqrt(np.sum(np.abs(self.prb)**2))
-
-   double diff_error = sqrt(thrust::transform_reduce(zip2(m_illumination, prb_old),
-		AbsDiff2<thrust::tuple<cusp::complex<float>, cusp::complex<float> > >(), 
-		float(0),
-		thrust::plus<float>()));
-
-   double norm = sqrt(thrust::transform_reduce(m_illumination.begin(), m_illumination.end(),
-		Norm< cusp::complex<float> >(), 
-		float(0),
-		thrust::plus<float>()));
-
-   return diff_error/norm;
-}
-
-double CudaEngineNSLS2::cal_chi_error(const DeviceRange<cusp::complex<float> > & image,
-       const DeviceRange<cusp::complex<float> > & tmp){
-
-   // chi_tmp = 0.
-   // for i, (x_start, x_end, y_start, y_end) in enumerate(self.point_info):
-   //      tmp = np.abs(fftn(self.prb*self.obj[x_start:x_end, y_start:y_end])/np.sqrt(1.*self.nx_prb*self.ny_prb))
-   //      chi_tmp = chi_tmp + np.sum((tmp - self.diff_array[i])**2)/(np.sum((self.diff_array[i])**2))
-   // self.error_chi[it] = np.sqrt(chi_tmp/self.num_points)
-
-   imageSplitIlluminate(image.data(), tmp.data());  
-   fftFrames(tmp.data(), tmp.data(), FFT_FORWARD);
-   cusp::blas::detail::scal(tmp.begin(), tmp.end(), 1.0f/sqrtf(m_frame_width*m_frame_height));
-
-   double err = sqrt(thrust::transform_reduce(zip2(tmp, m_frames),
-				AbsSubtract2<thrust::tuple<cusp::complex<float>,float> >(), 
-				float(0),
-				thrust::plus<float>()))/m_frames_norm;
-
-   return err;
-}
 
