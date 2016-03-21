@@ -11,6 +11,7 @@
 #include "counter.h"
 
 int main(int argc, char ** argv){
+
   int argc_copy = argc;
 
   /*! parse options */
@@ -18,7 +19,11 @@ int main(int argc, char ** argv){
   opt->parse_args(argc,argv);
 
   /*! initialize engine */
+
   CudaEngineNSLS2 engine;
+
+  engine.m_beta = 0.9;
+
   engine.setWrapAround(opt->wrapAround);
   Communicator communicator(argc, argv,&engine);  
 

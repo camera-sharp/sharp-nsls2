@@ -13,17 +13,32 @@ class CudaEngineNSLS2: public CudaEngine
   /** Constructor */
   CudaEngineNSLS2();
 
+  // Engine API
+
   virtual void iterate(int steps);
 
  protected:
 
-  void updateImage(const DeviceRange<cusp::complex<float> > & input_frames,
+  // recon_ptycho methods
+
+  void cal_object_trans(const DeviceRange<cusp::complex<float> > & input_frames,
 		   bool global_sync);
 
-  void updateProbe(const DeviceRange<cusp::complex<float> > & input_frames, 
+  void cal_probe_trans(const DeviceRange<cusp::complex<float> > & input_frames, 
 		   const DeviceRange<cusp::complex<float> > & frames_object,
 		   const DeviceRange<cusp::complex<float> > & frames_numerator,
 		   const DeviceRange<cusp::complex<float> > & frames_denominator);
+
+  double cal_obj_error(const DeviceRange<cusp::complex<float> > & obj_old);
+
+  double cal_prb_error(const DeviceRange<cusp::complex<float> > & prb_old);
+
+  double cal_chi_error(const DeviceRange<cusp::complex<float> > & input_image, 
+		       const DeviceRange<cusp::complex<float> > & tmp_frames);
+
+ protected:
+
+  // local versions of sharp methods/wrappers
 
   void calcDataProjector(const DeviceRange<cusp::complex<float> > & input_frames,
 			 const DeviceRange<cusp::complex<float> > & output_frames,
@@ -34,17 +49,31 @@ class CudaEngineNSLS2: public CudaEngine
 			     const DeviceRange<cusp::complex<float> > & output_frames,
 			     float * output_residual = NULL);
 
- public:
-
-  double compareImageSolution();
-
- public:
-
   int printDiagmostics(float data_residual, float overlap_residual);
 
   void printSummary(int success);
 
+  double compareImageSolution();
+
  protected:
+
+  // debugging 
+
+  double cal_sol_error();
+
+ public:
+
+  // recon_ptycho parameters
+
+  int m_start_update_probe;
+  int m_start_update_object;
+
+  float m_alpha;
+  float m_beta;
+
+ protected:
+
+  // local sharp parameters
 
   DeviceRange<cusp::complex<float> >m_illuminated_area0;
 
