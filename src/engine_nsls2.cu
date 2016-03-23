@@ -18,6 +18,72 @@
 using namespace camera_sharp;
 
 template <typename T>
+struct SetMaxAmp : public thrust::unary_function<T, T>
+{
+
+  float amp_max;
+  SetMaxAmp(float _amp_max)
+    : amp_max(_amp_max){}
+
+  __host__ __device__
+  T operator()(T x){
+    float abs_x = cusp::abs(x);
+    if(abs_x > amp_max) return x*amp_max/abs_x;
+    return x;
+  }
+};
+
+template <typename T>
+struct SetMinAmp : public thrust::unary_function<T, T>
+{
+
+  float amp_min;
+  SetMinAmp(float _amp_min)
+    : amp_min(_amp_min){}
+
+  __host__ __device__
+  T operator()(T x){
+    float abs_x = cusp::abs(x);
+    if(abs_x < amp_min) return x*amp_min/abs_x;
+    return x;
+  }
+};
+
+template <typename T>
+struct SetMaxPha : public thrust::unary_function<T, T>
+{
+
+  float pha_max;
+  SetMaxPha(float _pha_max)
+    : pha_max(_pha_max){}
+
+  __host__ __device__
+  T operator()(T x){
+    float abs_x = cusp::abs(x);
+    float pha_x = cusp::arg(x);
+    if(pha_x > pha_max) return cusp::polar(abs_x, pha_max);
+    return x;
+  }
+};
+
+template <typename T>
+struct SetMinPha : public thrust::unary_function<T, T>
+{
+
+  float pha_min;
+  SetMinPha(float _pha_min)
+    : pha_min(_pha_min){}
+
+  __host__ __device__
+  T operator()(T x){
+    float abs_x = cusp::abs(x);
+    float pha_x = cusp::arg(x);
+    if(pha_x < pha_min) return cusp::polar(abs_x, pha_min);
+    return x;
+  }
+};
+
+template <typename T>
 struct AbsDiff2 : public thrust::unary_function<T,float>
 {
   __host__ __device__
@@ -45,7 +111,12 @@ CudaEngineNSLS2::CudaEngineNSLS2()
    m_start_update_probe  = 2;
 
    m_alpha = 1.e-8;
-   m_beta = 1.0;
+   m_beta  = 0.9;
+
+   m_amp_max =  1.0;
+   m_amp_min =  0.0;
+   m_pha_max =  3.14/2;
+   m_pha_min = -3.14/2;
 }
 
 //
@@ -67,6 +138,7 @@ void CudaEngineNSLS2::iterate(int steps){
 
   thrust::device_vector<cusp::complex<float> > image_old(m_image.size()); 
   thrust::device_vector<cusp::complex<float> > prb_old(m_illumination.size()); 
+  thrust::device_vector<cusp::complex<float> > prb_tmp(m_illumination.size()); 
 
   // Large GPU arrays, with size equal to number of frames 
  
@@ -151,9 +223,9 @@ void CudaEngineNSLS2::iterate(int steps){
     if(m_iteration >= m_start_update_probe) {
       if(m_iteration >= m_start_update_object) {
           cal_object_trans(m_frames_iterate, do_sync);
-          cal_probe_trans(m_frames_iterate, prb_obj, tmp, tmp2);
+          cal_probe_trans(m_frames_iterate, prb_obj, tmp, tmp2, prb_tmp);
       } else {
-          cal_probe_trans(m_frames_iterate, prb_obj, tmp, tmp2);
+          cal_probe_trans(m_frames_iterate, prb_obj, tmp, tmp2, prb_tmp);
       }
     } else {
       if(m_iteration >= m_start_update_object){
@@ -205,12 +277,23 @@ void CudaEngineNSLS2::cal_object_trans(const DeviceRange<cusp::complex<float> > 
     frameOverlapNormalize(input_frames.data(), m_image_scale.data(), m_image.data());
   }
 
+  // ptycho_recon
+
+   thrust::transform(m_image.begin(),m_image.end(), m_image.begin(),
+		      SetMaxAmp<cusp::complex<float> >(m_amp_max));
+   thrust::transform(m_image.begin(),m_image.end(), m_image.begin(),
+		      SetMinAmp<cusp::complex<float> >(m_amp_min));
+   thrust::transform(m_image.begin(),m_image.end(), m_image.begin(),
+   		      SetMaxPha<cusp::complex<float> >(m_pha_max));
+   thrust::transform(m_image.begin(),m_image.end(), m_image.begin(),
+    		      SetMinPha<cusp::complex<float> >(m_pha_min));
 }
 
 void CudaEngineNSLS2::cal_probe_trans(const DeviceRange<cusp::complex<float> > & frames_data, 
      const DeviceRange<cusp::complex<float> > & frames_object,
      const DeviceRange<cusp::complex<float> > & frames_numerator,
-     const DeviceRange<cusp::complex<float> > & frames_denominator) {
+     const DeviceRange<cusp::complex<float> > & frames_denominator,
+     const DeviceRange<cusp::complex<float> > & prb_tmp) {
 
   bool newMethod = false;
 
@@ -231,6 +314,7 @@ void CudaEngineNSLS2::cal_probe_trans(const DeviceRange<cusp::complex<float> > &
     thrust::device_vector<cusp::complex<float> > illumination_numerator(m_illumination.size());
     shiftedSum(frames_numerator, illumination_numerator);
 
+
     thrust::device_vector<cusp::complex<float> > illumination_denominator(m_illumination.size());
     shiftedSum(frames_denominator, illumination_denominator);
 
@@ -240,10 +324,27 @@ void CudaEngineNSLS2::cal_probe_trans(const DeviceRange<cusp::complex<float> > &
 							 cusp::blas::detail::maximum<cusp::complex<float> >());
     regularization = 1e-4f*regularization;
 
-    // 
+    std::cout << "regulization: " << regularization << std::endl;
 
     m_comm->allSum(illumination_numerator);
     m_comm->allSum(illumination_denominator);
+
+    // ptycho
+
+/*
+    thrust::copy(m_illumination.begin(), m_illumination.end(), prb_tmp.data());
+    cusp::blas::scal(prb_tmp, 0.1f);  
+
+    thrust::transform(illumination_numerator.begin(),
+		      illumination_numerator.end(),
+		      prb_tmp.begin(),
+		      illumination_numerator.begin(),
+		      thrust::plus<cusp::complex<float> >());
+
+    regularization = 0.1;
+*/
+
+    // 
 
     thrust::transform(illumination_numerator.begin(),
 		      illumination_numerator.end(),
@@ -266,6 +367,41 @@ void CudaEngineNSLS2::cal_probe_trans(const DeviceRange<cusp::complex<float> > &
 
         obj_update /= norm_probe_array
 */
+
+void CudaEngineNSLS2::calculateImageScale(){
+
+  CudaEngine::calculateImageScale();
+
+  /*
+
+  m_illuminated_area.resize(m_image.size());
+  illuminationsOverlap(thrust::raw_pointer_cast(m_illuminated_area.data()));
+  float abs_max = thrust::transform_reduce(m_illumination.begin(), m_illumination.end(),
+					   Abs<cusp::complex<float> >(),
+					   cusp::complex<float>(0), 
+					   cusp::blas::detail::maximum<cusp::complex<float> >()).real();
+  m_image_scale.resize(m_image.size());
+  m_sigma = abs_max*abs_max*1e-9;
+
+  // std::cout << "sigma: " << m_sigma << std::endl;
+  m_sigma = m_alpha;
+
+  // compute m_image_scale=1/m_illuminated_area
+  thrust::transform(m_illuminated_area.begin(), 
+                    m_illuminated_area.end(),
+		    m_image_scale.begin(),
+		    InvSigma<cusp::complex<float> >(m_sigma));
+
+  // compute m_global_image_scale=1/all sum (m_illuminated_area)
+  cusp::array1d<cusp::complex<float>,cusp::device_memory> global_m_illuminated_area(m_illuminated_area);
+  m_comm->allSum(global_m_illuminated_area);
+  m_global_image_scale.resize(m_image.size());
+  thrust::transform(global_m_illuminated_area.begin(),
+                    global_m_illuminated_area.end(),
+		    m_global_image_scale.begin(),
+		    InvSigma<cusp::complex<float> >(m_sigma));
+*/
+}
 
 double CudaEngineNSLS2::cal_obj_error(const DeviceRange<cusp::complex<float> > & obj_old){
 

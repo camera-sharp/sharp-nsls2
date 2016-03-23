@@ -27,7 +27,8 @@ class CudaEngineNSLS2: public CudaEngine
   void cal_probe_trans(const DeviceRange<cusp::complex<float> > & input_frames, 
 		   const DeviceRange<cusp::complex<float> > & frames_object,
 		   const DeviceRange<cusp::complex<float> > & frames_numerator,
-		   const DeviceRange<cusp::complex<float> > & frames_denominator);
+		   const DeviceRange<cusp::complex<float> > & frames_denominator,
+		   const DeviceRange<cusp::complex<float> > & prb_tmp);
 
   double cal_obj_error(const DeviceRange<cusp::complex<float> > & obj_old);
 
@@ -49,6 +50,8 @@ class CudaEngineNSLS2: public CudaEngine
 			     const DeviceRange<cusp::complex<float> > & output_frames,
 			     float * output_residual = NULL);
 
+  void calculateImageScale();
+
   int printDiagmostics(float data_residual, float overlap_residual);
 
   void printSummary(int success);
@@ -68,8 +71,13 @@ class CudaEngineNSLS2: public CudaEngine
   int m_start_update_probe;
   int m_start_update_object;
 
-  float m_alpha;
-  float m_beta;
+  float m_alpha; // 1.e-8
+  float m_beta;  // 0.9
+
+  float m_amp_max;  //  1.0
+  float m_amp_min;  //  0.0
+  float m_pha_max;  //  pi/2
+  float m_pha_min;  // -pi/2 
 
  protected:
 
