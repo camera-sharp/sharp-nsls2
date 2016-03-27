@@ -1,5 +1,5 @@
 
-#include <engine_nsls2.h>
+#include <CudaEngineNSLS2.h>
 #include <boost/assert.hpp>
 #include <cusp/blas.h>
 #include <cusp/print.h>
@@ -14,6 +14,8 @@
 #include <float.h>
 #include <limits>
 #include "geometry.h"
+
+#include "sharp_thrust.h"
 
 using namespace camera_sharp;
 
@@ -124,17 +126,9 @@ CudaEngineNSLS2::CudaEngineNSLS2()
 void CudaEngineNSLS2::iterate(int steps){
 
   std::cout << "CudaEngineNSLS2::iterate" << std::endl;
-  std::cout << "image: "  << m_image.shape(0) << ", " << m_image.shape(1) << std::endl;
-  std::cout << "frames: " << m_frames.size() << std::endl;
+  // std::cout << "image: "  << m_image.shape(0) << ", " << m_image.shape(1) << std::endl;
+  // std::cout << "frames: " << m_frames.size() << std::endl;
 
-  m_data_tolerance     = Options::getOptions()->data_tolerance;
-  m_overlap_tolerance  = Options::getOptions()->overlap_tolerance;
-  m_solution_tolerance = Options::getOptions()->solution_tolerance;
-
-  //
-
-  m_illuminated_area0.resize(m_image.size());
-  illuminationsOverlap(thrust::raw_pointer_cast(m_illuminated_area0.data()));
 
   thrust::device_vector<cusp::complex<float> > image_old(m_image.size()); 
   thrust::device_vector<cusp::complex<float> > prb_old(m_illumination.size()); 
@@ -145,8 +139,6 @@ void CudaEngineNSLS2::iterate(int steps){
   thrust::device_vector<cusp::complex<float> > prb_obj(m_frames.size());
   thrust::device_vector<cusp::complex<float> > tmp(m_frames.size());
   thrust::device_vector<cusp::complex<float> > tmp2(m_frames.size());
-
-  int success = 0;
 
   clock_t start_timer = clock(); //Start 
 
@@ -170,13 +162,7 @@ void CudaEngineNSLS2::iterate(int steps){
     // Calculate the overlap projection: 
     // prb_obj = self.prb * self.obj[x_start:x_end, y_start:y_end]
 
-    float overlap_residual = 0;
-
-    if(calculate_residual){
-      calcOverlapProjection(m_frames_iterate, m_image, prb_obj, &overlap_residual);
-    }else{
-      calcOverlapProjection(m_frames_iterate, m_image, prb_obj);
-    }
+    calcOverlapProjection(m_frames_iterate, m_image, prb_obj);
 
     // tmp = 2. * prb_obj - self.product[i]
 
@@ -191,13 +177,7 @@ void CudaEngineNSLS2::iterate(int steps){
 
    // Calculate the data projection: tmp2
 
-    float data_residual = 0;
-
-    if(calculate_residual){
-      calcDataProjector(tmp, tmp2, &data_residual);
-    }else{
-      calcDataProjector(tmp, tmp2);
-    }
+   dataProjector(tmp, tmp2);
 
     // result = self.beta * (tmp2 - prb_obj)
 
@@ -223,6 +203,7 @@ void CudaEngineNSLS2::iterate(int steps){
     if(m_iteration >= m_start_update_probe) {
       if(m_iteration >= m_start_update_object) {
           cal_object_trans(m_frames_iterate, do_sync);
+	  set_object_constraints();
           cal_probe_trans(m_frames_iterate, prb_obj, tmp, tmp2, prb_tmp);
       } else {
           cal_probe_trans(m_frames_iterate, prb_obj, tmp, tmp2, prb_tmp);
@@ -230,6 +211,7 @@ void CudaEngineNSLS2::iterate(int steps){
     } else {
       if(m_iteration >= m_start_update_object){
           cal_object_trans(m_frames_iterate, do_sync);
+	  set_object_constraints();
       }
     }
   
@@ -245,14 +227,7 @@ void CudaEngineNSLS2::iterate(int steps){
 	          << ", object_chi: " << obj_err 
 		  << ", probe_chi: " << prb_err
 		  << ", diff_chi: " << chi_err << std::endl;
-	// success = printDiagmostics(data_residual, overlap_residual);
     }
-
-   if(m_iteration) {
-     // if(success) { 
-     //	  break;
-     // }
-   }
 
     m_iteration++;      
   }    
@@ -277,6 +252,10 @@ void CudaEngineNSLS2::cal_object_trans(const DeviceRange<cusp::complex<float> > 
     frameOverlapNormalize(input_frames.data(), m_image_scale.data(), m_image.data());
   }
 
+}
+
+void CudaEngineNSLS2::set_object_constraints(){
+
   // ptycho_recon
 
    thrust::transform(m_image.begin(),m_image.end(), m_image.begin(),
@@ -287,6 +266,7 @@ void CudaEngineNSLS2::cal_object_trans(const DeviceRange<cusp::complex<float> > 
    		      SetMaxPha<cusp::complex<float> >(m_pha_max));
    thrust::transform(m_image.begin(),m_image.end(), m_image.begin(),
     		      SetMinPha<cusp::complex<float> >(m_pha_min));
+
 }
 
 void CudaEngineNSLS2::cal_probe_trans(const DeviceRange<cusp::complex<float> > & frames_data, 
@@ -323,8 +303,7 @@ void CudaEngineNSLS2::cal_probe_trans(const DeviceRange<cusp::complex<float> > &
 							 cusp::complex<float> (0,0),
 							 cusp::blas::detail::maximum<cusp::complex<float> >());
     regularization = 1e-4f*regularization;
-
-    std::cout << "regulization: " << regularization << std::endl;
+    // std::cout << "regulization: " << regularization << std::endl;
 
     m_comm->allSum(illumination_numerator);
     m_comm->allSum(illumination_denominator);
@@ -356,52 +335,6 @@ void CudaEngineNSLS2::cal_probe_trans(const DeviceRange<cusp::complex<float> > &
   calculateImageScale();
 }
 
-/*
-        norm_probe_array = np.zeros((self.nx_obj, self.ny_obj)) + self.alpha # recon.alpha = 1.e-8
-
-        prb_sqr = np.abs(self.prb) ** 2
-        prb_conj = self.prb.conjugate()
-        for i, (x_start, x_end, y_start, y_end) in enumerate(self.point_info):
-            norm_probe_array[x_start:x_end, y_start:y_end] += prb_sqr
-            obj_update[x_start:x_end, y_start:y_end] += prb_conj * self.product[i]
-
-        obj_update /= norm_probe_array
-*/
-
-void CudaEngineNSLS2::calculateImageScale(){
-
-  CudaEngine::calculateImageScale();
-
-  /*
-
-  m_illuminated_area.resize(m_image.size());
-  illuminationsOverlap(thrust::raw_pointer_cast(m_illuminated_area.data()));
-  float abs_max = thrust::transform_reduce(m_illumination.begin(), m_illumination.end(),
-					   Abs<cusp::complex<float> >(),
-					   cusp::complex<float>(0), 
-					   cusp::blas::detail::maximum<cusp::complex<float> >()).real();
-  m_image_scale.resize(m_image.size());
-  m_sigma = abs_max*abs_max*1e-9;
-
-  // std::cout << "sigma: " << m_sigma << std::endl;
-  m_sigma = m_alpha;
-
-  // compute m_image_scale=1/m_illuminated_area
-  thrust::transform(m_illuminated_area.begin(), 
-                    m_illuminated_area.end(),
-		    m_image_scale.begin(),
-		    InvSigma<cusp::complex<float> >(m_sigma));
-
-  // compute m_global_image_scale=1/all sum (m_illuminated_area)
-  cusp::array1d<cusp::complex<float>,cusp::device_memory> global_m_illuminated_area(m_illuminated_area);
-  m_comm->allSum(global_m_illuminated_area);
-  m_global_image_scale.resize(m_image.size());
-  thrust::transform(global_m_illuminated_area.begin(),
-                    global_m_illuminated_area.end(),
-		    m_global_image_scale.begin(),
-		    InvSigma<cusp::complex<float> >(m_sigma));
-*/
-}
 
 double CudaEngineNSLS2::cal_obj_error(const DeviceRange<cusp::complex<float> > & obj_old){
 
@@ -477,14 +410,6 @@ double CudaEngineNSLS2::cal_sol_error(){
 
 // 
 
-void CudaEngineNSLS2::calcDataProjector(const DeviceRange<cusp::complex<float> > & input_frames,
-				        const DeviceRange<cusp::complex<float> > & output_frames,
-				        float * output_residual){
-
-   dataProjector(input_frames, output_frames, output_residual);
-
-}
-
 void CudaEngineNSLS2::calcOverlapProjection(const DeviceRange<cusp::complex<float> > & input_frames,
      				    	    const DeviceRange<cusp::complex<float> > & input_image,
 				    	    const DeviceRange<cusp::complex<float> > & output_frames,
@@ -508,92 +433,53 @@ void CudaEngineNSLS2::calcOverlapProjection(const DeviceRange<cusp::complex<floa
   Counter::getCounter()->addCount("overlap_projector", diff*1000); 
 }
 
-//
+/*
+        norm_probe_array = np.zeros((self.nx_obj, self.ny_obj)) + self.alpha # recon.alpha = 1.e-8
 
-int  CudaEngineNSLS2::printDiagmostics(float data_residual, float overlap_residual){
+        prb_sqr = np.abs(self.prb) ** 2
+        prb_conj = self.prb.conjugate()
+        for i, (x_start, x_end, y_start, y_end) in enumerate(self.point_info):
+            norm_probe_array[x_start:x_end, y_start:y_end] += prb_sqr
+            obj_update[x_start:x_end, y_start:y_end] += prb_conj * self.product[i]
 
-     int success = 0;
+        obj_update /= norm_probe_array
+*/
 
-      if(m_comm->isLeader()){
+void CudaEngineNSLS2::calculateImageScale(){
 
-	if(m_has_solution){
+  CudaEngine::calculateImageScale();
 
-	  double image_residual = compareImageSolution();
+  /*
 
-	  if(m_io) { 
-	    m_io->printResiduals(m_iteration, data_residual, overlap_residual, image_residual); 
-	  } else {
-	    sharp_log("iter = %d, data = %e, overlap = %e solution = %e (nmse)",m_iteration,data_residual, overlap_residual,image_residual);
-	  }
-	  if(image_residual < m_solution_tolerance){
-	    success = 1;
-	  }
+  m_illuminated_area.resize(m_image.size());
+  illuminationsOverlap(thrust::raw_pointer_cast(m_illuminated_area.data()));
+  float abs_max = thrust::transform_reduce(m_illumination.begin(), m_illumination.end(),
+					   Abs<cusp::complex<float> >(),
+					   cusp::complex<float>(0), 
+					   cusp::blas::detail::maximum<cusp::complex<float> >()).real();
+  m_image_scale.resize(m_image.size());
+  m_sigma = abs_max*abs_max*1e-9;
 
-	} else {
-	  if(m_io) { 
-	    m_io->printResiduals(m_iteration,data_residual,overlap_residual);
-	  } else {
-	    sharp_log("iter = %d, data = %e, overlap = %e",m_iteration,data_residual, overlap_residual);
-	  }
-	}
-      
-	if(data_residual < m_data_tolerance){
-	  success = 1;
-	}
+  // std::cout << "sigma: " << m_sigma << std::endl;
+  m_sigma = m_alpha;
 
-	if(overlap_residual < m_overlap_tolerance){
-	  success = 1;
-	}
+  // compute m_image_scale=1/m_illuminated_area
+  thrust::transform(m_illuminated_area.begin(), 
+                    m_illuminated_area.end(),
+		    m_image_scale.begin(),
+		    InvSigma<cusp::complex<float> >(m_sigma));
 
-      }
-
-      m_comm->allSum(success);
-      return success;
+  // compute m_global_image_scale=1/all sum (m_illuminated_area)
+  cusp::array1d<cusp::complex<float>,cusp::device_memory> global_m_illuminated_area(m_illuminated_area);
+  m_comm->allSum(global_m_illuminated_area);
+  m_global_image_scale.resize(m_image.size());
+  thrust::transform(global_m_illuminated_area.begin(),
+                    global_m_illuminated_area.end(),
+		    m_global_image_scale.begin(),
+		    InvSigma<cusp::complex<float> >(m_sigma));
+*/
 }
 
-void CudaEngineNSLS2::printSummary(int success){
-
-    if(success){
-      sharp_log("Success in %d iterations...residuals beat (%e,%e,%e)", 
-		m_iteration, m_data_tolerance, m_overlap_tolerance, m_solution_tolerance);
-    }else{
-      sharp_log("Maximum iteration exceeded. residual tolerances not reached (%e,%e,%e)", 
-		m_data_tolerance, m_overlap_tolerance, m_solution_tolerance);
-    }
-}
-
-double  CudaEngineNSLS2::compareImageSolution(){
-
-	  // we need to compute a weighted sum and figure out the global phase difference
-	  // there could be an amplitude difference as well if the illumination power is unknown.
-	  //
-	  // residual = sqrt( min_phi  sum | phi m_image -  m_solution |^2 illuminated_area) / m_frames_norm
-	  //
-	  // we also know that  m_frames_norm= sqrt(sum illuminated_area (|m_image|^2) )
-	  //
-	  //
-	  // min_c  sum illuminated_area (|m_solution|^2 + |phi|^2 |m_image|^2 - 2 Re  c <m_image , m_solution> )
-	  // we also know that  m_frames_norm= sum illuminated_area (|m_image|^2) 
-	  // and c=  <m_image , m_solution>_illuminated_area / |m_solution|^2_illuminated_area 
-
-	  // this computes sum abs(image)^2 illuminated_area and sum ( conj(image)*solution*illuminated_area)
-	  thrust::tuple<cusp::complex<double>,double> result  = 
-                 thrust::transform_reduce(zip3(m_solution, m_illuminated_area0, m_image),
-                 ComputeImageResidual< cusp::complex<float>, cusp::complex<double>, double >(),
-		 thrust::tuple<cusp::complex<double>,double>(0),
-		 TupleAdd< thrust::tuple<cusp::complex<double>, double> >());
-
-	  double image_residual = (m_image_norm_2* thrust::get<1>(result) - 
-                 (cusp::norm(thrust::get<0>(result)))) / (m_image_norm_2 * thrust::get<1>(result));
-
-	  if (image_residual < 0) {  // numerical precision issues, violating Cauchy-Schwartz inequality
-	    image_residual *= -1;
-	  }
-
-	  image_residual = sqrtf(image_residual);
-
-	  return image_residual;
-}
 
 
 

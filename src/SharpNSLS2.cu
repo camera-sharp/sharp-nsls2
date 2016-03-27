@@ -2,7 +2,7 @@
 #include <input_output.h>
 #include <communicator.h>
 #include <strategy.h>
-#include <engine_nsls2.h>
+#include <CudaEngineNSLS2.h>
 #include <solver.h>
 #include <string>
 #include <unistd.h>
@@ -10,22 +10,22 @@
 #include <exception>
 #include "counter.h"
 
-int main(int argc, char ** argv){
+#include "SharpNSLS2.h"
+
+SharpNSLS2::SharpNSLS2(){
+}
+
+int SharpNSLS2::run(int argc, char * argv[]){
 
   int argc_copy = argc;
 
-  /*! parse options */
-  Options * opt = Options::getOptions();
+  Options* opt = Options::getOptions();
   opt->parse_args(argc,argv);
-
-  /*! initialize engine */
 
   CudaEngineNSLS2 engine;
 
-  engine.m_beta = 0.9;
-
   engine.setWrapAround(opt->wrapAround);
-  Communicator communicator(argc, argv,&engine);  
+  Communicator communicator(argc, argv, &engine);  
 
   InputOutput input_output(argc_copy,argv,&communicator);  
   bool result = input_output.loadMetadata(opt->input_file.c_str());
@@ -45,10 +45,11 @@ int main(int argc, char ** argv){
  
   input_output.loadMyFrames(opt->input_file.c_str(),strategy.myFrames());
 
-  for(int i =0;i<opt->n_reconstructions;i++){
+  for(int i = 0; i < opt->n_reconstructions; i++){
+
     char buffer[1024];
     sprintf(buffer,"run-%05d-",i);
-    Solver solver(&engine,&communicator,&input_output,&strategy);
+    Solver solver(&engine, &communicator, &input_output, &strategy);
 
     try{
       if(solver.initialize() == -1) {
@@ -59,10 +60,12 @@ int main(int argc, char ** argv){
       sharp_error("Solver/Engine has failed to initialize: %s\n", e.what());
       exit(-1);
     }
+
     solver.run(opt->iterations);
     solver.writeImage(std::string(buffer));
   }
 
   Counter::getCounter()->printTotals(communicator.getRank());
-  return 0;  
+
+  return 0;
 }

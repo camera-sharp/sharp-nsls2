@@ -1,9 +1,8 @@
 #pragma once
 
-#ifndef NSLS2_ENGINE_H
-#define NSLS2_ENGINE_H
+#ifndef CUDA_ENGINE_NSLS2_H
+#define CUDA_ENGINE_NSLS2_H
 
-#include "sharp_thrust.h"
 #include "cuda_engine.h"
 
 class CudaEngineNSLS2: public CudaEngine
@@ -21,6 +20,8 @@ class CudaEngineNSLS2: public CudaEngine
 
   // recon_ptycho methods
 
+  void recon_dm_trans();
+
   void cal_object_trans(const DeviceRange<cusp::complex<float> > & input_frames,
 		   bool global_sync);
 
@@ -37,13 +38,11 @@ class CudaEngineNSLS2: public CudaEngine
   double cal_chi_error(const DeviceRange<cusp::complex<float> > & input_image, 
 		       const DeviceRange<cusp::complex<float> > & tmp_frames);
 
+  void set_object_constraints();
+
  protected:
 
   // local versions of sharp methods/wrappers
-
-  void calcDataProjector(const DeviceRange<cusp::complex<float> > & input_frames,
-			 const DeviceRange<cusp::complex<float> > & output_frames,
-			 float * output_residual = NULL);
 
   void calcOverlapProjection(const DeviceRange<cusp::complex<float> > & input_frames,
 			     const DeviceRange<cusp::complex<float> > & input_image,
@@ -51,12 +50,6 @@ class CudaEngineNSLS2: public CudaEngine
 			     float * output_residual = NULL);
 
   void calculateImageScale();
-
-  int printDiagmostics(float data_residual, float overlap_residual);
-
-  void printSummary(int success);
-
-  double compareImageSolution();
 
  protected:
 
@@ -78,16 +71,6 @@ class CudaEngineNSLS2: public CudaEngine
   float m_amp_min;  //  0.0
   float m_pha_max;  //  pi/2
   float m_pha_min;  // -pi/2 
-
- protected:
-
-  // local sharp parameters
-
-  DeviceRange<cusp::complex<float> >m_illuminated_area0;
-
-  float m_data_tolerance;
-  float m_overlap_tolerance;
-  float m_solution_tolerance;
 
 };
 

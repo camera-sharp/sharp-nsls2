@@ -3,7 +3,7 @@ PROJECT (sharp-nsls2)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 INCLUDE_DIRECTORIES(${INCLUDE_LIST})
 
-SET(OBJECTS engine_nsls2.cu engine_epie.cu)
+SET(OBJECTS CudaEngineNSLS2.cu SharpNSLS2.cu )
 
 CUDA_ADD_LIBRARY(sharp-nsls2 SHARED ${OBJECTS})
 TARGET_LINK_LIBRARIES(sharp-nsls2 ${LIBRARY_LIST})
@@ -11,14 +11,13 @@ CUDA_ADD_CUFFT_TO_TARGET(sharp-nsls2)
 
 INSTALL(TARGETS sharp-nsls2 LIBRARY DESTINATION lib)
 
-CUDA_ADD_EXECUTABLE(sharp-nsls2.bin main_nsls2.cu)
+CUDA_ADD_EXECUTABLE(sharp-nsls2.bin main-nsls2.cu)
 TARGET_LINK_LIBRARIES(sharp-nsls2.bin sharp-nsls2)
 CUDA_ADD_CUFFT_TO_TARGET(sharp-nsls2.bin)
-
 INSTALL(TARGETS sharp-nsls2.bin RUNTIME DESTINATION bin)
 
-CUDA_ADD_EXECUTABLE(sharp-epie.bin main_epie.cu)
-TARGET_LINK_LIBRARIES(sharp-epie.bin sharp-nsls2)
-CUDA_ADD_CUFFT_TO_TARGET(sharp-epie.bin)
+# CUDA_ADD_EXECUTABLE(sharp-ext.bin main-ext.cu)
+# TARGET_LINK_LIBRARIES(sharp-ext.bin sharp-nsls2)
+# CUDA_ADD_CUFFT_TO_TARGET(sharp-ext.bin)
+# INSTALL(TARGETS sharp-ext.bin RUNTIME DESTINATION bin)
 
-INSTALL(TARGETS sharp-epie.bin RUNTIME DESTINATION bin)
