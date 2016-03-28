@@ -65,7 +65,20 @@ int SharpNSLS2::run(int argc, char * argv[]){
     solver.writeImage(std::string(buffer));
   }
 
+  // close the file
+
+  if(opt->input_file.c_str() != NULL){
+     hid_t file_id = H5Fopen(opt->input_file.c_str(),H5F_ACC_RDWR,H5P_DEFAULT);
+     H5Fclose(file_id);
+   }
+
   Counter::getCounter()->printTotals(communicator.getRank());
 
   return 0;
 }
+
+std::string SharpNSLS2::getInputFile(){
+   Options* opt = Options::getOptions();
+   return opt->input_file;
+}
+
