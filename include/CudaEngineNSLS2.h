@@ -16,6 +16,14 @@ class CudaEngineNSLS2: public CudaEngine
 
   virtual void iterate(int steps);
 
+ public:
+
+  // New fine-grained API
+
+  void init();
+
+  int step();
+
  protected:
 
   // recon_ptycho methods
@@ -71,6 +79,18 @@ class CudaEngineNSLS2: public CudaEngine
   float m_amp_min;  //  0.0
   float m_pha_max;  //  pi/2
   float m_pha_min;  // -pi/2 
+
+ protected:
+
+    DeviceRange<cusp::complex<float> > m_image_old; 
+    DeviceRange<cusp::complex<float> > m_prb_old; 
+    DeviceRange<cusp::complex<float> > m_prb_tmp; 
+
+    // Large GPU arrays, with size equal to number of frames 
+ 
+    thrust::device_vector<cusp::complex<float> > m_prb_obj;
+    thrust::device_vector<cusp::complex<float> > m_tmp;
+    thrust::device_vector<cusp::complex<float> > m_tmp2;
 
 };
 

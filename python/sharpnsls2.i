@@ -2,18 +2,21 @@
 
 %{
 #define SWIG_FILE_WITH_INIT
+#define PY_ARRAY_UNIQUE_SYMBOL sharpnsls2_ARRAY_API
 #include <dlfcn.h>
-#include "SharpNSLS2.h"
+#include "PythonSharpNSLS2.h"
 %}
 
+%include "numpy.i"
+
 %init %{
+  import_array();
   // This is here to avoid problems with missing symbols due to
   // the bad interactions between python and the crazy ways MPI
   // loads its libraries.
   // Check for example https://code.google.com/p/petsc4py/issues/detail?id=14
   dlopen("libmpi.so", RTLD_NOW|RTLD_GLOBAL|RTLD_NOLOAD);
 %}
-
 
 %include <std_string.i>
 %include <std_vector.i>
@@ -55,9 +58,7 @@ namespace std {
 }
 
 /*****************************************/
-/**                                     **/
 /**          Exception handling         **/
-/**                                     **/
 /*****************************************/
 
 %exception{
@@ -76,13 +77,11 @@ namespace std {
 }
 
 /*****************************************/
-/**                                     **/
 /**      Start of API declaration       **/
-/**                                     **/
 /*****************************************/
 
-%feature("director") SharpNSLS2; 
+%feature("director") PythonSharpNSLS2; 
 
 %apply float *INOUT { float * output_error };
 
-%include "SharpNSLS2.h"
+%include "PythonSharpNSLS2.h"

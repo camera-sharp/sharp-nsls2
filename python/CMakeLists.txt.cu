@@ -26,11 +26,11 @@ message("${CMAKE_INSTALL_PREFIX}")
 
 FILE(GLOB sharpnsls2_headers "${CMAKE_CURRENT_SOURCE_DIR}/../include/*.h")
 
-add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sharpnsls2_wrap.cpp COMMAND ${SWIG_EXECUTABLE} -python -c++ -outcurrentdir ${SWIG_EXTRA_FLAGS} -I${CUDA_INCLUDE_DIRS} -I${CMAKE_CURRENT_SOURCE_DIR}/../include/ -o ${CMAKE_CURRENT_BINARY_DIR}/sharpnsls2_wrap.cpp ${CMAKE_CURRENT_SOURCE_DIR}/sharpnsls2.i DEPENDS ${sharpnsls2_headers} ${CMAKE_CURRENT_SOURCE_DIR}/sharpnsls2.i)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sharpnsls2_wrap.cu COMMAND ${SWIG_EXECUTABLE} -python -c++ -outcurrentdir ${SWIG_EXTRA_FLAGS} -I${CUDA_INCLUDE_DIRS} -I${CMAKE_CURRENT_SOURCE_DIR}/../include/ -o ${CMAKE_CURRENT_BINARY_DIR}/sharpnsls2_wrap.cu ${CMAKE_CURRENT_SOURCE_DIR}/sharpnsls2.i DEPENDS ${sharpnsls2_headers} ${CMAKE_CURRENT_SOURCE_DIR}/sharpnsls2.i)
 
 INCLUDE_DIRECTORIES(${PYTHON_INCLUDE_PATH} ${PYTHON_NUMPY_INCLUDE_DIR})
 
-ADD_LIBRARY(_sharpnsls2 SHARED ${CMAKE_CURRENT_BINARY_DIR}/sharpnsls2_wrap.cpp PythonSharpNSLS2.cpp)
+CUDA_ADD_LIBRARY(_sharpnsls2 SHARED ${CMAKE_CURRENT_BINARY_DIR}/sharpnsls2_wrap.cu)
 
 TARGET_LINK_LIBRARIES(_sharpnsls2 sharp-nsls2 ${PYTHON_LIBRARIES})
 

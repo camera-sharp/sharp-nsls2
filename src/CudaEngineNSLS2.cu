@@ -123,6 +123,8 @@ CudaEngineNSLS2::CudaEngineNSLS2()
 
 //
 
+/*
+
 void CudaEngineNSLS2::iterate(int steps){
 
   std::cout << "CudaEngineNSLS2::iterate" << std::endl;
@@ -240,6 +242,130 @@ void CudaEngineNSLS2::iterate(int steps){
   Counter::getCounter()->addCount("total ", diff*1000);
 }
 
+*/
+
+void CudaEngineNSLS2::iterate(int steps){
+
+  init();
+
+  clock_t start_timer = clock(); //Start 
+
+  for(int i = 0; i < steps;i++){
+    step();
+  }
+
+}
+
+void CudaEngineNSLS2::init(){
+
+  std::cout << "CudaEngineNSLS2::init" << std::endl;
+
+  // std::cout << "image: "  << m_image.shape(0) << ", " << m_image.shape(1) << std::endl;
+  // std::cout << "frames: " << m_frames.size() << std::endl;
+
+  m_image_old.resize(m_image.size()); 
+  m_prb_old.resize(m_illumination.size()); 
+  m_prb_tmp.resize(m_illumination.size()); 
+
+  // Large GPU arrays, with size equal to number of frames 
+ 
+  m_prb_obj.resize(m_frames.size());
+  m_tmp.resize(m_frames.size());
+  m_tmp2.resize(m_frames.size());
+
+  m_iteration = 0;
+}
+
+int CudaEngineNSLS2::step(){
+
+    // double sol_err = cal_sol_error();
+    // std::cout << "sol_chi: " << sol_err << std::endl;
+
+    start_timer();
+
+    bool calculate_residual = (m_iteration % m_output_period == 0);
+
+    // Make sure to do a global synchronization in the last iteration
+    bool do_sync = true; // ((m_iteration % m_global_period) == 0 ||  i == steps-1);
+
+    //
+
+    thrust::copy(m_image.begin(), m_image.end(), m_image_old.data());
+    thrust::copy(m_illumination.begin(), m_illumination.end(), m_prb_old.data());
+
+    // Calculate the overlap projection: 
+    // prb_obj = self.prb * self.obj[x_start:x_end, y_start:y_end]
+
+    calcOverlapProjection(m_frames_iterate, m_image, m_prb_obj);
+
+    // tmp = 2. * prb_obj - self.product[i]
+
+    thrust::copy(m_prb_obj.begin(), m_prb_obj.end(), m_tmp.begin());
+    cusp::blas::scal(m_tmp, 2.0f);  
+
+    thrust::transform(m_tmp.begin(),
+		      m_tmp.end(),
+		      m_frames_iterate.begin(),
+		      m_tmp.begin(),
+		      thrust::minus<cusp::complex<float> >());
+
+   // Calculate the data projection: tmp2
+
+   dataProjector(m_tmp, m_tmp2);
+
+    // result = self.beta * (tmp2 - prb_obj)
+
+    thrust::transform(m_tmp2.begin(),
+		      m_tmp2.end(),
+		      m_prb_obj.begin(),
+		      m_tmp.begin(),
+		      thrust::minus<cusp::complex<float> >());
+
+    cusp::blas::scal(m_tmp, m_beta);
+
+    // z(i+1) = z(i) + result
+
+    thrust::transform(m_frames_iterate.begin(),
+		      m_frames_iterate.end(),
+		      m_tmp.begin(),
+		      m_frames_iterate.begin(),
+		      thrust::plus<cusp::complex<float> >());
+
+    // Update m_image and m_illumination
+    // prb_obj, tmp, tmp2 - temporary containers
+
+    if(m_iteration >= m_start_update_probe) {
+      if(m_iteration >= m_start_update_object) {
+          cal_object_trans(m_frames_iterate, do_sync);
+	  set_object_constraints();
+          cal_probe_trans(m_frames_iterate, m_prb_obj, m_tmp, m_tmp2, m_prb_tmp);
+      } else {
+          cal_probe_trans(m_frames_iterate, m_prb_obj, m_tmp, m_tmp2, m_prb_tmp);
+      }
+    } else {
+      if(m_iteration >= m_start_update_object){
+          cal_object_trans(m_frames_iterate, do_sync);
+	  set_object_constraints();
+      }
+    }
+  
+    // print residuals
+
+    if(calculate_residual){
+
+	double obj_err = cal_obj_error(m_image_old);
+	double prb_err = cal_prb_error(m_prb_old);
+	double chi_err = cal_chi_error(m_image, m_tmp);
+ 
+	std::cout << m_iteration 
+	          << ", object_chi: " << obj_err 
+		  << ", probe_chi: " << prb_err
+		  << ", diff_chi: " << chi_err << std::endl;
+    }
+
+    m_iteration++;
+    return m_iteration;
+}
 
 // 
 

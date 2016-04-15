@@ -11,10 +11,14 @@ CUDA_ADD_CUFFT_TO_TARGET(sharp-nsls2)
 
 INSTALL(TARGETS sharp-nsls2 LIBRARY DESTINATION lib)
 
-CUDA_ADD_EXECUTABLE(sharp-nsls2.bin main-nsls2.cu)
+ADD_EXECUTABLE(sharp-nsls2.bin main-nsls2.cpp)
 TARGET_LINK_LIBRARIES(sharp-nsls2.bin sharp-nsls2)
-CUDA_ADD_CUFFT_TO_TARGET(sharp-nsls2.bin)
 INSTALL(TARGETS sharp-nsls2.bin RUNTIME DESTINATION bin)
+
+# CUDA_ADD_EXECUTABLE(sharp-nsls2.bin main-nsls2.cu)
+# TARGET_LINK_LIBRARIES(sharp-nsls2.bin sharp-nsls2)
+# CUDA_ADD_CUFFT_TO_TARGET(sharp-nsls2.bin)
+# INSTALL(TARGETS sharp-nsls2.bin RUNTIME DESTINATION bin)
 
 # CUDA_ADD_EXECUTABLE(sharp-ext.bin main-ext.cu)
 # TARGET_LINK_LIBRARIES(sharp-ext.bin sharp-nsls2)
