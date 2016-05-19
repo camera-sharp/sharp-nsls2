@@ -22,6 +22,7 @@ SharpNSLS2::SharpNSLS2() {
 
 SharpNSLS2::~SharpNSLS2() {
   clean();
+  if(m_communicator) delete m_communicator;
 }
 
 boost::multi_array<std::complex<float>, 2>& SharpNSLS2::getImage(){
@@ -29,6 +30,14 @@ boost::multi_array<std::complex<float>, 2>& SharpNSLS2::getImage(){
 }
 
 int SharpNSLS2::init(int argc, char * argv[]){
+
+  clock_t start_timer = clock(); //Start 
+
+  clean();
+
+  double clean_timer = clock();
+  double diff =  (clean_timer - start_timer)/(double) CLOCKS_PER_SEC; 
+  // std::cout << "SharpNSLS2::init, clean, time: " << diff << std::endl;
 
   int argc_copy = argc;
 
@@ -41,8 +50,18 @@ int SharpNSLS2::init(int argc, char * argv[]){
 
   m_communicator = new Communicator(argc, argv, m_engine);  
 
+  double comm_timer = clock();
+  diff =  (comm_timer - clean_timer)/(double) CLOCKS_PER_SEC; 
+
+  // std::cout << "SharpNSLS2::init, communicator, time: " << diff << std::endl;
+
   m_input_output = new InputOutput(argc_copy,argv, m_communicator);  
   bool result = m_input_output->loadMetadata(opt->input_file.c_str());
+
+  double meta_timer = clock();
+  diff = (meta_timer - comm_timer)/(double) CLOCKS_PER_SEC;
+
+  // std::cout << "SharpNSLS2::init, loading metadata, time: " << diff << std::endl;
 
   if(!result) {
     sharp_error("Error: failed to parse cxi file. exiting");
@@ -56,8 +75,18 @@ int SharpNSLS2::init(int argc, char * argv[]){
   m_strategy->setFramesSize(m_input_output->framesSize());
   m_strategy->setReciprocalSize(m_input_output->reciprocalSize());
   m_strategy->calculateDecomposition();
+
+  double strategy_timer = clock();
+  diff = (strategy_timer - meta_timer)/(double) CLOCKS_PER_SEC;
+
+  // std::cout << "SharpNSLS2::init, strategy, time: " << diff << std::endl;
  
   m_input_output->loadMyFrames(opt->input_file.c_str(), m_strategy->myFrames());
+
+  double frames_timer = clock();
+  diff = (frames_timer - strategy_timer)/(double) CLOCKS_PER_SEC;
+
+  // std::cout << "SharpNSLS2::init, loading frames, time: " << diff << std::endl;
 
   m_solver = new Solver(m_engine, m_communicator, m_input_output, m_strategy);
 
@@ -72,6 +101,9 @@ int SharpNSLS2::init(int argc, char * argv[]){
       clean();
       exit(-1);
     }
+
+  diff = (clock() - frames_timer) / (double) CLOCKS_PER_SEC; 
+  std::cout << "SharpNSLS2::init, solver, time: " << diff << std::endl;
 
   m_engine->init();
 
@@ -111,7 +143,6 @@ void SharpNSLS2::clean(){
     if(m_solver) delete m_solver;
     if(m_strategy) delete m_strategy;
     if(m_input_output) delete m_input_output;
-    if(m_communicator) delete m_communicator;
     if(m_engine) delete m_engine;
 
 }

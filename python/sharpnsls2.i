@@ -84,4 +84,5 @@ namespace std {
 
 %apply float *INOUT { float * output_error };
 
+%include "SharpNSLS2.h"
 %include "PythonSharpNSLS2.h"
