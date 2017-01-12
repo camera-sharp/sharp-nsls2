@@ -14,6 +14,7 @@
 #include <float.h>
 #include <limits>
 #include "geometry.h"
+#include <sys/time.h>
 
 #include "sharp_thrust.h"
 
@@ -281,7 +282,12 @@ int CudaEngineNSLS2::step(){
     // double sol_err = cal_sol_error();
     // std::cout << "sol_chi: " << sol_err << std::endl;
 
-    start_timer();
+    // start_timer();
+    // double diff = 0.0;
+    double start_timer = clock();
+
+    struct timeval  start_tv;
+    gettimeofday(&start_tv, NULL);
 
     bool calculate_residual = (m_iteration % m_output_period == 0);
 
@@ -293,10 +299,37 @@ int CudaEngineNSLS2::step(){
     thrust::copy(m_image.begin(), m_image.end(), m_image_old.data());
     thrust::copy(m_illumination.begin(), m_illumination.end(), m_prb_old.data());
 
+    cudaDeviceSynchronize();
+
+    struct timeval  copy_tv;
+    gettimeofday(&copy_tv, NULL);
+
+    // printf ("SharpNSLS2::step, copy, time(tv): = %f seconds\n",
+    //     (double) (copy_tv.tv_usec - start_tv.tv_usec) / 1000000 +
+    //     (double) (copy_tv.tv_sec - start_tv.tv_sec));
+
+    double copy_timer = clock();
+    // diff =  (copy_timer - start_timer)/(double) CLOCKS_PER_SEC; 
+    // printf("SharpNSLS2::step, copy, time: %e \n", diff);
+
     // Calculate the overlap projection: 
     // prb_obj = self.prb * self.obj[x_start:x_end, y_start:y_end]
 
     calcOverlapProjection(m_frames_iterate, m_image, m_prb_obj);
+
+    // cudaThreadSynchronize();
+    cudaDeviceSynchronize();
+
+    struct timeval  overlap_tv;
+    gettimeofday(&overlap_tv, NULL);
+
+    // printf ("SharpNSLS2::step, overlap, time(tv): = %f seconds\n",
+    //     (double) (overlap_tv.tv_usec - copy_tv.tv_usec) / 1000000 +
+    //     (double) (overlap_tv.tv_sec - copy_tv.tv_sec));
+
+    double overlap_timer = clock();
+    // diff =  (overlap_timer - copy_timer)/(double) CLOCKS_PER_SEC; 
+    // printf("SharpNSLS2::step, overlap, time: %e \n", diff);
 
     // tmp = 2. * prb_obj - self.product[i]
 
@@ -309,9 +342,35 @@ int CudaEngineNSLS2::step(){
 		      m_tmp.begin(),
 		      thrust::minus<cusp::complex<float> >());
 
-   // Calculate the data projection: tmp2
+    cudaDeviceSynchronize();
 
-   dataProjector(m_tmp, m_tmp2);
+    struct timeval  trans_tv;
+    gettimeofday(&trans_tv, NULL);
+
+    // printf ("SharpNSLS2::step, trans, time(tv): = %f seconds\n",
+    //     (double) (trans_tv.tv_usec - overlap_tv.tv_usec) / 1000000 +
+    //     (double) (trans_tv.tv_sec - overlap_tv.tv_sec));
+
+    double trans_timer = clock();
+    // diff =  (trans_timer - overlap_timer)/(double) CLOCKS_PER_SEC; 
+    // printf("SharpNSLS2::step, trans, time: %e \n", diff);
+
+    // Calculate the data projection: tmp2
+
+    dataProjector(m_tmp, m_tmp2);
+
+    cudaDeviceSynchronize();
+
+    struct timeval  proj_tv;
+    gettimeofday(&proj_tv, NULL);
+
+    // printf ("SharpNSLS2::step, proj, time(tv): = %f seconds\n",
+    //     (double) (proj_tv.tv_usec - trans_tv.tv_usec) / 1000000 +
+    //     (double) (proj_tv.tv_sec - trans_tv.tv_sec));
+
+    double proj_timer = clock();
+    // diff =  (proj_timer - trans_timer)/(double) CLOCKS_PER_SEC; 
+    // printf("SharpNSLS2::step, proj, time: %e \n", diff);
 
     // result = self.beta * (tmp2 - prb_obj)
 
@@ -334,20 +393,133 @@ int CudaEngineNSLS2::step(){
     // Update m_image and m_illumination
     // prb_obj, tmp, tmp2 - temporary containers
 
+    cudaDeviceSynchronize();
+
+    struct timeval  trans2_tv;
+    gettimeofday(&trans2_tv, NULL);
+
+    // printf ("SharpNSLS2::step, trans2, time(tv): = %f seconds\n",
+    //     (double) (trans2_tv.tv_usec - proj_tv.tv_usec) / 1000000 +
+    //     (double) (trans2_tv.tv_sec - proj_tv.tv_sec));
+
+    // printf ("SharpNSLS2::step, local, time(tv): = %f seconds\n",
+    //       (double) (trans2_tv.tv_usec - start_tv.tv_usec) / 1000000 +
+    //       (double) (trans2_tv.tv_sec - start_tv.tv_sec));
+
+    double trans2_timer = clock();
+    // diff =  (trans2_timer - proj_timer)/(double) CLOCKS_PER_SEC; 
+    // printf("SharpNSLS2::step, trans2, time: %e \n", diff);
+
     if(m_iteration >= m_start_update_probe) {
       if(m_iteration >= m_start_update_object) {
+
           cal_object_trans(m_frames_iterate, do_sync);
+
+    	  cudaDeviceSynchronize();
+
+    	  struct timeval  object_tv;
+    	  gettimeofday(&object_tv, NULL);
+
+    	  // printf ("SharpNSLS2::step, object, time(tv): = %f seconds\n",
+          // 	 (double) (object_tv.tv_usec - trans2_tv.tv_usec) / 1000000 +
+          //	 (double) (object_tv.tv_sec - trans2_tv.tv_sec));
+
+    	  double object_timer = clock();
+    	  // diff =  (object_timer - trans2_timer)/(double) CLOCKS_PER_SEC; 
+   	  // printf("SharpNSLS2::step, object, time: %e \n", diff);
+
 	  set_object_constraints();
+
+	  cudaDeviceSynchronize();
+
+   	  struct timeval  limit_tv;
+    	  gettimeofday(&limit_tv, NULL);
+
+    	  // printf ("SharpNSLS2::step, limit, time(tv): = %f seconds\n",
+          //	 (double) (limit_tv.tv_usec - object_tv.tv_usec) / 1000000 +
+          //	 (double) (limit_tv.tv_sec - object_tv.tv_sec));
+
+   	  double limit_timer = clock();
+    	  // diff =  (limit_timer - object_timer)/(double) CLOCKS_PER_SEC; 
+  	  // printf("SharpNSLS2::step, limits, time: %e \n", diff);
+
           cal_probe_trans(m_frames_iterate, m_prb_obj, m_tmp, m_tmp2, m_prb_tmp);
+
+	  cudaDeviceSynchronize();
+
+  	  struct timeval  probe_tv;
+    	  gettimeofday(&probe_tv, NULL);
+
+    	  // printf ("SharpNSLS2::step, probe, time(tv): = %f seconds\n",
+          //	 (double) (probe_tv.tv_usec - limit_tv.tv_usec) / 1000000 +
+          //	 (double) (probe_tv.tv_sec - limit_tv.tv_sec));
+
+  	  double probe_timer = clock();
+    	  // diff =  (probe_timer - limit_timer)/(double) CLOCKS_PER_SEC; 
+  	  // printf("SharpNSLS2::step, probe, time: %e \n", diff);
+
       } else {
+
           cal_probe_trans(m_frames_iterate, m_prb_obj, m_tmp, m_tmp2, m_prb_tmp);
+
+	  cudaDeviceSynchronize();
+
+ 	  struct timeval  probe_tv;
+    	  gettimeofday(&probe_tv, NULL);
+
+    	  // printf ("SharpNSLS2::step, probe, time(tv): = %f seconds\n",
+          //	 (double) (probe_tv.tv_usec - trans2_tv.tv_usec) / 1000000 +
+          //	 (double) (probe_tv.tv_sec - trans2_tv.tv_sec));
+
+  	  double probe_timer = clock();
+    	  // diff =  (probe_timer - trans2_timer)/(double) CLOCKS_PER_SEC; 
+  	  // printf("SharpNSLS2::step, probe, time: %e \n", diff);
+
       }
     } else {
       if(m_iteration >= m_start_update_object){
+
           cal_object_trans(m_frames_iterate, do_sync);
+
+	  cudaDeviceSynchronize();
+
+ 	  struct timeval  object_tv;
+    	  gettimeofday(&object_tv, NULL);
+
+    	  // printf ("SharpNSLS2::step, object, time(tv): = %f seconds\n",
+          //	 (double) (object_tv.tv_usec - trans2_tv.tv_usec) / 1000000 +
+          //	 (double) (object_tv.tv_sec - trans2_tv.tv_sec));
+
+
+   	  double object_timer = clock();
+    	  // diff =  (object_timer - trans2_timer)/(double) CLOCKS_PER_SEC; 
+   	  // printf("SharpNSLS2::step, object, time: %e \n", diff);
+
 	  set_object_constraints();
+
+	  cudaDeviceSynchronize();
+
+	  struct timeval  limit_tv;
+    	  gettimeofday(&limit_tv, NULL);
+
+    	  // printf ("SharpNSLS2::step, limit, time(tv): = %f seconds\n",
+          //	 (double) (limit_tv.tv_usec - object_tv.tv_usec) / 1000000 +
+          //	 (double) (limit_tv.tv_sec - object_tv.tv_sec));
+
+  	  double limit_timer = clock();
+    	  // diff =  (limit_timer - object_timer)/(double) CLOCKS_PER_SEC; 
+  	  // printf("SharpNSLS2::step, limits, time: %e \n", diff);
       }
     }
+
+   cudaDeviceSynchronize();
+
+   struct timeval  update_tv;
+   gettimeofday(&update_tv, NULL);
+
+   double update_timer = clock();
+   // diff =  (update_timer - trans2_timer)/(double) CLOCKS_PER_SEC; 
+   // std::cout << "SharpNSLS2::step, update, time: " << diff << std::endl;
   
     // print residuals
 
@@ -363,6 +535,26 @@ int CudaEngineNSLS2::step(){
 		  << ", diff_chi: " << chi_err << std::endl;
     }
 
+   cudaDeviceSynchronize();
+
+    // struct timeval  err_tv;
+    // gettimeofday(&err_tv, NULL);
+
+    // printf ("SharpNSLS2::step, err, time(tv): = %f seconds\n",
+    //     (double) (err_tv.tv_usec - update_tv.tv_usec) / 1000000 +
+    //     (double) (err_tv.tv_sec - update_tv.tv_sec));
+
+    // printf ("SharpNSLS2::step, step, time(tv): = %f seconds\n",
+    //     (double) (err_tv.tv_usec - start_tv.tv_usec) / 1000000 +
+    //     (double) (err_tv.tv_sec - start_tv.tv_sec));
+
+   // double err_timer = clock();
+   // diff =  (err_timer - update_timer)/(double) CLOCKS_PER_SEC; 
+   // printf("SharpNSLS2::step, err, time: %e \n", diff);
+
+   // diff =  (err_timer - start_timer)/(double) CLOCKS_PER_SEC; 
+   // printf("SharpNSLS2::step, step, time: %e \n", diff);
+
     m_iteration++;
     return m_iteration;
 }
@@ -371,12 +563,32 @@ int CudaEngineNSLS2::step(){
 
 void CudaEngineNSLS2::cal_object_trans(const DeviceRange<cusp::complex<float> > & input_frames,
 				bool global_sync){
+
+  double start_timer = clock();
+  // double diff = 0.0;
+  // double sum_timer = 0.0;
+
   if(global_sync){
+
     frameOverlapNormalize(input_frames.data(), m_global_image_scale.data(), m_image.data());
+
+    double overlap_timer = clock();
+    // diff =  (overlap_timer - start_timer)/(double) CLOCKS_PER_SEC; 
+    // printf("SharpNSLS2::cal_object_trans, overlap, time: %e \n", diff);
+
     m_comm->allSum(m_image);
+
+    double sum_timer = clock();
+    // diff =  (sum_timer - overlap_timer)/(double) CLOCKS_PER_SEC; 
+    // printf("SharpNSLS2::cal_object_trans, sum, time: %e \n", diff);
+
   }else{
     frameOverlapNormalize(input_frames.data(), m_image_scale.data(), m_image.data());
   }
+
+  double end_timer = clock();
+  // diff =  (end_timer - start_timer)/(double) CLOCKS_PER_SEC; 
+  // printf("SharpNSLS2::cal_object_trans, total, time: %e \n", diff);
 
 }
 
@@ -401,6 +613,14 @@ void CudaEngineNSLS2::cal_probe_trans(const DeviceRange<cusp::complex<float> > &
      const DeviceRange<cusp::complex<float> > & frames_denominator,
      const DeviceRange<cusp::complex<float> > & prb_tmp) {
 
+  double start_timer = clock();
+  // double diff = 0.0;
+  // double sum_timer = 0.0;
+
+  struct timeval  start_tv;
+  struct timeval  sum_tv;
+  gettimeofday(&start_tv, NULL);
+
   bool newMethod = false;
 
   if(newMethod) {
@@ -408,6 +628,19 @@ void CudaEngineNSLS2::cal_probe_trans(const DeviceRange<cusp::complex<float> > &
   } else {
 
     imageSplit(m_image, frames_object);
+
+    cudaDeviceSynchronize();
+
+    struct timeval  split_tv;
+    gettimeofday(&split_tv, NULL);
+
+    // printf ("SharpNSLS2::cal_probe_trans, split, time(tv): = %f seconds\n",
+    //       (double) (split_tv.tv_usec - start_tv.tv_usec) / 1000000 +
+    //       (double) (split_tv.tv_sec - start_tv.tv_sec));
+
+    double split_timer = clock();
+    // diff =  (split_timer - start_timer)/(double) CLOCKS_PER_SEC; 
+    // printf("SharpNSLS2::cal_probe_trans, split, time: %e \n", diff);
 
     {
       // frames_numerator = frames_data *conj(frames_object)
@@ -417,12 +650,37 @@ void CudaEngineNSLS2::cal_probe_trans(const DeviceRange<cusp::complex<float> > &
       conjugateMultiply(frames_object, frames_object, frames_denominator);
     }
 
+    cudaDeviceSynchronize();
+
+    struct timeval  conj_tv;
+    gettimeofday(&conj_tv, NULL);
+
+    // printf ("SharpNSLS2::cal_probe_trans, conj, time(tv): = %f seconds\n",
+    //       (double) (conj_tv.tv_usec - split_tv.tv_usec) / 1000000 +
+    //       (double) (conj_tv.tv_sec - split_tv.tv_sec));
+
+    double conj_timer = clock();
+    // diff =  (conj_timer - split_timer)/(double) CLOCKS_PER_SEC; 
+    // printf("SharpNSLS2::cal_probe_trans, conj, time: %e \n", diff);
+
     thrust::device_vector<cusp::complex<float> > illumination_numerator(m_illumination.size());
     shiftedSum(frames_numerator, illumination_numerator);
 
-
     thrust::device_vector<cusp::complex<float> > illumination_denominator(m_illumination.size());
     shiftedSum(frames_denominator, illumination_denominator);
+
+    cudaDeviceSynchronize();
+
+    struct timeval  shift_tv;
+    gettimeofday(&shift_tv, NULL);
+
+    // printf ("SharpNSLS2::cal_probe_trans, shift, time(tv): = %f seconds\n",
+    //       (double) (shift_tv.tv_usec - conj_tv.tv_usec) / 1000000 +
+    //       (double) (shift_tv.tv_sec - conj_tv.tv_sec));
+
+    double shift_timer = clock();
+    // diff =  (shift_timer - conj_timer)/(double) CLOCKS_PER_SEC; 
+    // printf("SharpNSLS2::cal_probe_trans, shift, time: %e \n", diff);
 
     cusp::complex<float> regularization = thrust::reduce(illumination_denominator.begin(),
 							 illumination_denominator.end(),
@@ -431,8 +689,33 @@ void CudaEngineNSLS2::cal_probe_trans(const DeviceRange<cusp::complex<float> > &
     regularization = 1e-4f*regularization;
     // std::cout << "regulization: " << regularization << std::endl;
 
+    cudaDeviceSynchronize();
+
+    struct timeval  regul_tv;
+    gettimeofday(&regul_tv, NULL);
+
+    // printf ("SharpNSLS2::cal_probe_trans, regul, time(tv): = %f seconds\n",
+    //       (double) (regul_tv.tv_usec - shift_tv.tv_usec) / 1000000 +
+    //       (double) (regul_tv.tv_sec - shift_tv.tv_sec));
+
+    double regul_timer = clock();
+    // diff =  (regul_timer - shift_timer)/(double) CLOCKS_PER_SEC; 
+    // printf("SharpNSLS2::cal_probe_trans, regul, time: %e \n", diff);
+
     m_comm->allSum(illumination_numerator);
     m_comm->allSum(illumination_denominator);
+
+    cudaDeviceSynchronize();
+
+    gettimeofday(&sum_tv, NULL);
+
+    // printf ("SharpNSLS2::cal_probe_trans, sum, time(tv): = %f seconds\n",
+    //       (double) (sum_tv.tv_usec - regul_tv.tv_usec) / 1000000 +
+    //       (double) (sum_tv.tv_sec - regul_tv.tv_sec));
+
+    // sum_timer = clock();
+    // diff =  (sum_timer - regul_timer)/(double) CLOCKS_PER_SEC; 
+    // printf("SharpNSLS2::cal_probe_trans, sum, time: %e \n", diff);
 
     // ptycho
 
@@ -458,7 +741,42 @@ void CudaEngineNSLS2::cal_probe_trans(const DeviceRange<cusp::complex<float> > &
 		      DivideWithRegularization<cusp::complex<float> >(regularization));
   }
 
+  cudaDeviceSynchronize();
+
+    struct timeval  trans_tv;
+    gettimeofday(&trans_tv, NULL);
+
+    // printf ("SharpNSLS2::cal_probe_trans, trans, time(tv): = %f seconds\n",
+    //       (double) (trans_tv.tv_usec - sum_tv.tv_usec) / 1000000 +
+    //       (double) (trans_tv.tv_sec - sum_tv.tv_sec));
+
+  double trans_timer = clock();
+  // diff =  (trans_timer - sum_timer)/(double) CLOCKS_PER_SEC; 
+  // printf("SharpNSLS2::cal_probe_trans, trans, time: %e \n", diff);
+
   calculateImageScale();
+
+  cudaDeviceSynchronize();
+
+    struct timeval  scale_tv;
+    gettimeofday(&scale_tv, NULL);
+
+    // printf ("SharpNSLS2::cal_probe_trans, scale, time(tv): = %f seconds\n",
+    //       (double) (scale_tv.tv_usec - trans_tv.tv_usec) / 1000000 +
+    //       (double) (scale_tv.tv_sec - trans_tv.tv_sec));
+
+ 
+    // printf ("SharpNSLS2::cal_probe_trans, total, time(tv): = %f seconds\n",
+    //       (double) (scale_tv.tv_usec - start_tv.tv_usec) / 1000000 +
+    //       (double) (scale_tv.tv_sec - start_tv.tv_sec));
+
+
+  double scale_timer = clock();
+  // diff =  (scale_timer - trans_timer)/(double) CLOCKS_PER_SEC; 
+  // printf("SharpNSLS2::cal_probe_trans, scale, time: %e \n", diff);
+
+  // diff =  (scale_timer - start_timer)/(double) CLOCKS_PER_SEC; 
+  // printf("SharpNSLS2::cal_probe_trans, total, time: %e \n", diff);
 }
 
 

@@ -1,6 +1,6 @@
 #include <boost/assert.hpp>
 #include <input_output.h>
-#include <communicator.h>
+#include <communicator_mpi.h>
 #include <strategy.h>
 #include <CudaEngineNSLS2.h>
 #include <solver.h>
@@ -48,7 +48,7 @@ int SharpNSLS2::init(int argc, char * argv[]){
 
   m_engine->setWrapAround(opt->wrapAround);
 
-  m_communicator = new Communicator(argc, argv, m_engine);  
+  m_communicator = new CommunicatorMPI(argc, argv, m_engine);  
 
   double comm_timer = clock();
   diff =  (comm_timer - clean_timer)/(double) CLOCKS_PER_SEC; 
@@ -114,9 +114,14 @@ int SharpNSLS2::run(){
 
     Options* opt = Options::getOptions();
 
+    clock_t start_timer = clock(); //Start 
+
     // m_solver->run(opt->iterations);
     for(int i = 0; i < opt->iterations; i++) {
        m_engine->step();
+       // double diff =  (clock() - start_timer)/(double) CLOCKS_PER_SEC; 
+       // std::cout << i << ", time: " << diff << std::endl;
+       // start_timer = clock();
     }
 
    Counter::getCounter()->printTotals(m_communicator->getRank());
