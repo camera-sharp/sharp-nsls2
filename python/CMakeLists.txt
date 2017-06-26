@@ -15,7 +15,7 @@ include_directories(${INCLUDE_LIST})
 #${PYTHON_EXECUTABLE} -c "from distutils import sysconfig; print sysconfig.get_python_lib(plat_specific=True, prefix='${CMAKE_INSTALL_PREFIX}')"
 execute_process(
   COMMAND
-  ${PYTHON_EXECUTABLE} -c "from distutils import sysconfig; print sysconfig.get_python_lib(plat_specific=True)"
+  ${PYTHON_EXECUTABLE} -c "from distutils import sysconfig; print (sysconfig.get_python_lib(plat_specific=True))"
   OUTPUT_VARIABLE _PYTHON_INSTDIR
   OUTPUT_STRIP_TRAILING_WHITESPACE
   )
@@ -45,9 +45,9 @@ set_target_properties(
   )
 
 INSTALL(TARGETS _sharpnsls2
-  RUNTIME DESTINATION ${PYTHON_INSTDIR}
-  LIBRARY DESTINATION ${PYTHON_INSTDIR}
-  ARCHIVE DESTINATION ${PYTHON_INSTDIR}
+  RUNTIME DESTINATION ${PYTHON_INSTDIR}/sharpnsls2
+  LIBRARY DESTINATION ${PYTHON_INSTDIR}/sharpnsls2
+  ARCHIVE DESTINATION ${PYTHON_INSTDIR}/sharpnsls2
   )
 
 INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/sharpnsls2.py ${CMAKE_CURRENT_SOURCE_DIR}/sharpnsls2/main.py ${CMAKE_CURRENT_SOURCE_DIR}/sharpnsls2/__init__.py DESTINATION ${PYTHON_INSTDIR}/sharpnsls2)
