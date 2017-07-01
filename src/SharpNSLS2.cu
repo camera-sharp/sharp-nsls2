@@ -11,6 +11,7 @@
 #include "counter.h"
 
 #include "SharpNSLS2.h"
+#include "CommunicatorGNode.h"
 
 SharpNSLS2::SharpNSLS2() {
   m_engine = 0;
@@ -18,11 +19,17 @@ SharpNSLS2::SharpNSLS2() {
   m_input_output = 0;
   m_strategy = 0;
   m_solver = 0;
+
+  isGNode = false;
 }
 
 SharpNSLS2::~SharpNSLS2() {
   clean();
   if(m_communicator) delete m_communicator;
+}
+
+void SharpNSLS2::setGNode() {
+  isGNode = true;
 }
 
 boost::multi_array<std::complex<float>, 2>& SharpNSLS2::getImage(){
@@ -48,7 +55,11 @@ int SharpNSLS2::init(int argc, char * argv[]){
 
   m_engine->setWrapAround(opt->wrapAround);
 
-  m_communicator = new CommunicatorMPI(argc, argv, m_engine);  
+  if(isGNode) {
+    m_communicator = new CommunicatorGNode(argc, argv, m_engine);
+  } else {
+    m_communicator = new CommunicatorMPI(argc, argv, m_engine);
+  }
 
   double comm_timer = clock();
   diff =  (comm_timer - clean_timer)/(double) CLOCKS_PER_SEC; 

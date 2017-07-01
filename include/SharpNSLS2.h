@@ -22,6 +22,10 @@ class SharpNSLS2 {
 
  public:
 
+  void setGNode();
+
+ public:
+
   int init(int argc, char * argv[]);
 
   int run();
@@ -43,6 +47,10 @@ class SharpNSLS2 {
   InputOutput* m_input_output;
   Strategy* m_strategy;
   Solver* m_solver;
+
+ protected:
+
+  bool isGNode;
 
 };
 

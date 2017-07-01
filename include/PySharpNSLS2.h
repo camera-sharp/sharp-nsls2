@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef PYTHON_SHARP_NSLS2_H
-#define PYTHON_SHARP_NSLS2_H
+#ifndef PY_SHARP_NSLS2_H
+#define PY_SHARP_NSLS2_H
 
 #include "boost/multi_array.hpp"
 
@@ -13,11 +13,15 @@
 
 #include "SharpNSLS2.h"
 
-class PythonSharpNSLS2 : public SharpNSLS2 {
+class PySharpNSLS2 : public SharpNSLS2 {
 
  public:
 
-  PythonSharpNSLS2();
+  PySharpNSLS2();
+
+ public:
+
+   void setGNode(); 
 
  public:
 

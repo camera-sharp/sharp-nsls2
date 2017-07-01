@@ -32,7 +32,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sharpnsls2_wrap.cpp COMMAN
 
 INCLUDE_DIRECTORIES(${PYTHON_INCLUDE_PATH} ${PYTHON_NUMPY_INCLUDE_DIR})
 
-ADD_LIBRARY(_sharpnsls2 SHARED ${CMAKE_CURRENT_BINARY_DIR}/sharpnsls2_wrap.cpp PythonSharpNSLS2.cpp)
+ADD_LIBRARY(_sharpnsls2 SHARED ${CMAKE_CURRENT_BINARY_DIR}/sharpnsls2_wrap.cpp PySharpNSLS2.cpp)
 
 TARGET_LINK_LIBRARIES(_sharpnsls2 sharp-nsls2 ${PYTHON_LIBRARIES})
 

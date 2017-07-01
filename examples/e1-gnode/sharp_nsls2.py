@@ -20,6 +20,7 @@ niters = 101
 args = ['local', '-o', '10',  '-i', '101', 'e1.cxi']
 
 t1 = datetime.now();
+sharpNSLS2.setGNode()
 sharpNSLS2.init(args)
 t2 = datetime.now()
 

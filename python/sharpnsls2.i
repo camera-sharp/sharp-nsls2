@@ -4,7 +4,7 @@
 #define SWIG_FILE_WITH_INIT
 #define PY_ARRAY_UNIQUE_SYMBOL sharpnsls2_ARRAY_API
 #include <dlfcn.h>
-#include "PythonSharpNSLS2.h"
+#include "PySharpNSLS2.h"
 %}
 
 %include "numpy.i"
@@ -85,4 +85,4 @@ namespace std {
 %apply float *INOUT { float * output_error };
 
 %include "SharpNSLS2.h"
-%include "PythonSharpNSLS2.h"
+%include "PySharpNSLS2.h"
