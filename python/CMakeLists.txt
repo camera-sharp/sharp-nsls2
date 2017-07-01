@@ -22,8 +22,9 @@ execute_process(
 
 SET(PYTHON_INSTDIR ${_PYTHON_INSTDIR} CACHE PATH "Installation directory for python module.")
 
-message("${PYTHON_INSTDIR}")
-message("${CMAKE_INSTALL_PREFIX}")
+message("python instdir: ${PYTHON_INSTDIR}")
+message("install prefix: ${CMAKE_INSTALL_PREFIX}")
+message("python libraries: ${PYTHON_LIBRARIES}")
 
 FILE(GLOB sharpnsls2_headers "${CMAKE_CURRENT_SOURCE_DIR}/../include/*.h")
 

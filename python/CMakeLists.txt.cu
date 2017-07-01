@@ -34,6 +34,7 @@ INCLUDE_DIRECTORIES(${PYTHON_INCLUDE_PATH} ${PYTHON_NUMPY_INCLUDE_DIR})
 CUDA_ADD_LIBRARY(_sharpnsls2 SHARED ${CMAKE_CURRENT_BINARY_DIR}/sharpnsls2_wrap.cu)
 
 TARGET_LINK_LIBRARIES(_sharpnsls2 sharp-nsls2 ${PYTHON_LIBRARIES})
+message("python libraries: ${PYTHON_INSTDIR}")
 
 set_target_properties(
   _sharpnsls2
