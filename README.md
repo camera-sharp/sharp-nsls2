@@ -9,9 +9,11 @@ The NSLS-II specialization of the SHARP multi-GPU ptychographic program:
 ## Prerequisites
 
 SHARP framework ([http://www.camera.lbl.gov/ptychography](http://www.camera.lbl.gov/ptychography)), including
-associated prerequisites, such as fftw-3.3.5+, hdf5-1.8.17+, swig-3.0.10+, mvapich2 2.2+.
+associated prerequisites, such as cmake 3.7.0+, gcc 5.3.0+, boost 1.58+, fftw-3.3.5+, hdf5-1.8.17+, swig-3.0.10+, cuda 8.0+, mvapich2 2.2+.
 
 ## Installation
+
+export BOOST_ROOT, FFTW3_HOME, SHARP_HOME
 
 ```
 git clone git://github.com/camera-sharp/sharp-nsls2.git
