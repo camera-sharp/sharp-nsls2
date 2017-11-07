@@ -124,7 +124,7 @@ endif()
 
 # Default to sm_30 and sm_35
 if(NOT CUDA_NVCC_FLAGS)
-  SET(CUDA_NVCC_FLAGS "-gencode=arch=compute_30,code=compute_30 -gencode=arch=compute_35,code=compute_35 -DBOOST_DISABLE_ASSERTS")
+  SET(CUDA_NVCC_FLAGS "-gencode=arch=compute_30,code=compute_30 -gencode=arch=compute_35,code=compute_35 -gencode arch=compute_60,code=sm_60 -DBOOST_DISABLE_ASSERTS")
 endif()
 
 if(TIMINGS)
