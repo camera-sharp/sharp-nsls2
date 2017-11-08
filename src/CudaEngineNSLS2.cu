@@ -311,6 +311,12 @@ void CudaEngineNSLS2::init(){
   m_tmp.resize(m_frames.size());
   m_tmp2.resize(m_frames.size());
 
+  // moved fftPlan from CudaEngine
+
+  int fft_dims[2] = {m_frame_width,m_frame_height};
+  int batch = m_nframes;
+  cufftResult status = cufftPlanMany(&m_fftPlan, 2, fft_dims, NULL,1,0,NULL,1,0,CUFFT_C2C,batch);
+
   m_iteration = 0;
 }
 
