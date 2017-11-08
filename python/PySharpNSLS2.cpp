@@ -41,7 +41,13 @@ void PySharpNSLS2::setPhaMin(float v){
   SharpNSLS2::setPhaMin(v);  
 }
 
-// 
+//
+
+void PySharpNSLS2::setChunks(int v){
+  SharpNSLS2::setChunks(v);  
+}
+
+//
 
 
 PyObject* PySharpNSLS2::getImage(){

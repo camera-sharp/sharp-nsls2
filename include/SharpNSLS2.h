@@ -61,6 +61,10 @@ class SharpNSLS2 {
 
  public:
 
+    void setChunks(int chunks);
+
+ public:
+
   /** Initialize engine */
   int init();
 

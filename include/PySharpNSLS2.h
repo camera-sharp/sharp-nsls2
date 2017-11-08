@@ -59,6 +59,10 @@ class PySharpNSLS2 : public SharpNSLS2 {
 
  public:
 
+  void setChunks(int v);
+
+ public:
+
   /** Initialize engine */
   int init();
 

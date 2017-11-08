@@ -63,6 +63,12 @@ void SharpNSLS2::setPhaMin(float v){
      m_engine->setPhaMin(v);
 }
 
+//
+
+void SharpNSLS2::setChunks(int v){
+     m_engine->setChunks(v);
+}
+
 // 
 
 int SharpNSLS2::setArgs(int argc, char * argv[]){

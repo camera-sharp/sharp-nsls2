@@ -59,8 +59,8 @@ class CudaEngineDM: public CudaEngine
 
  public:
 
-  /** number of partitions */
-  void setParts(int nparts); 
+  /** number of chunks */
+  void setChunks(int nparts); 
 
  protected:
 

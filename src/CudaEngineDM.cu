@@ -21,7 +21,7 @@ using namespace camera_sharp;
 
 // 
 
-void CudaEngineDM::setParts(int v){
+void CudaEngineDM::setChunks(int v){
      m_nparts = v;
 }
 
