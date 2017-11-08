@@ -13,7 +13,7 @@ associated prerequisites, such as cmake 3.7.0+, gcc 5.3.0+, boost 1.58+, fftw-3.
 
 ## Installation
 
-export BOOST_ROOT, FFTW3_HOME, SHARP_HOME
+export FFTW3_HOME, SHARP_HOME
 
 ```
 git clone git://github.com/camera-sharp/sharp-nsls2.git
