@@ -16,8 +16,10 @@ class SharpNSLS2 {
 
  public:
 
+  /** Constructor */
   SharpNSLS2();
 
+  /** Destructor */
   ~SharpNSLS2();
 
  public:
@@ -26,10 +28,46 @@ class SharpNSLS2 {
 
  public:
 
-  int init(int argc, char * argv[]);
+  /** set the SHARP variables with command arguments */
+  int setArgs(int argc, char * argv[]);
 
+ public:
+
+  // Recon API
+
+  /** general feedback parameter */
+  void setBeta(float v);
+
+  /** espresso threshold coefficient */
+  void setAlpha(float v);
+
+  /** iteration number start updating probe */
+  void setStartUpdateProbe(int v);
+
+  /** iteration number start updating object */
+  void setStartUpdateObject(int v);
+
+  /** maximum object magnitude */
+  void setAmpMax(float v);
+
+  /** minimum object magnitude */
+  void setAmpMin(float v);
+
+  /** maximum object phase */
+  void setPhaMax(float v);
+
+  /** minimum object phase */
+  void setPhaMin(float v);
+
+ public:
+
+  /** Initialize engine */
+  int init();
+
+  /** Run all iterations */
   int run();
 
+  /** Run one iteration */
   int step();
 
   boost::multi_array<std::complex<float>, 2>& getImage();

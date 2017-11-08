@@ -122,6 +122,42 @@ CudaEngineNSLS2::CudaEngineNSLS2()
    m_pha_min = -3.14/2;
 }
 
+// Recon API
+
+void CudaEngineNSLS2::setAlpha(float v){
+     m_alpha = v;
+}
+
+void CudaEngineNSLS2::setBeta(float v){
+     m_beta = v;
+}
+
+void CudaEngineNSLS2::setStartUpdateProbe(int v){
+     m_start_update_probe = v;
+}
+
+void CudaEngineNSLS2::setStartUpdateObject(int v){
+     m_start_update_object = v;
+}
+
+void CudaEngineNSLS2::setAmpMax(float v){
+     m_amp_max = v;
+}
+
+void CudaEngineNSLS2::setAmpMin(float v){
+     m_amp_min = v;
+}
+
+
+void CudaEngineNSLS2::setPhaMax(float v){
+     m_pha_max = v;
+}
+
+void CudaEngineNSLS2::setPhaMin(float v){
+     m_pha_min = v;
+}
+
+
 //
 
 /*
@@ -247,14 +283,15 @@ void CudaEngineNSLS2::iterate(int steps){
 
 void CudaEngineNSLS2::iterate(int steps){
 
-  init();
 
   clock_t start_timer = clock(); //Start 
 
-  for(int i = 0; i < steps;i++){
-    step();
-  }
-
+  for(int i = 0; i < steps; i++) {
+   	  step();
+       	  // double diff =  (clock() - start_timer)/(double) CLOCKS_PER_SEC; 
+       	  // std::cout << i << ", time: " << diff << std::endl;
+       	  // start_timer = clock();
+    }
 }
 
 void CudaEngineNSLS2::init(){

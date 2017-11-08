@@ -21,6 +21,7 @@ SharpNSLS2::SharpNSLS2() {
   m_solver = 0;
 
   isGNode = false;
+
 }
 
 SharpNSLS2::~SharpNSLS2() {
@@ -28,15 +29,43 @@ SharpNSLS2::~SharpNSLS2() {
   if(m_communicator) delete m_communicator;
 }
 
-void SharpNSLS2::setGNode() {
-  isGNode = true;
+// Recon API
+
+void SharpNSLS2::setAlpha(float v){
+     m_engine->setAlpha(v);
 }
 
-boost::multi_array<std::complex<float>, 2>& SharpNSLS2::getImage(){
-  return m_engine->getImage();
+void SharpNSLS2::setBeta(float v){
+     m_engine->setBeta(v);
 }
 
-int SharpNSLS2::init(int argc, char * argv[]){
+void SharpNSLS2::setStartUpdateProbe(int v){
+     m_engine->setStartUpdateProbe(v);
+}
+
+void SharpNSLS2::setStartUpdateObject(int v){
+     m_engine->setStartUpdateObject(v);
+}
+
+void SharpNSLS2::setAmpMax(float v){
+     m_engine->setAmpMax(v);
+}
+
+void SharpNSLS2::setAmpMin(float v){
+     m_engine->setAmpMin(v);
+}
+
+void SharpNSLS2::setPhaMax(float v){
+     m_engine->setPhaMax(v);
+}
+
+void SharpNSLS2::setPhaMin(float v){
+     m_engine->setPhaMin(v);
+}
+
+// 
+
+int SharpNSLS2::setArgs(int argc, char * argv[]){
 
   clock_t start_timer = clock(); //Start 
 
@@ -114,34 +143,39 @@ int SharpNSLS2::init(int argc, char * argv[]){
     }
 
   diff = (clock() - frames_timer) / (double) CLOCKS_PER_SEC; 
-  std::cout << "SharpNSLS2::init, solver, time: " << diff << std::endl;
-
-  m_engine->init();
+  // std::cout << "SharpNSLS2::init, solver, time: " << diff << std::endl;
 
   return 0;
+}
+
+//
+
+int SharpNSLS2::init(){
+    m_engine->init();
+    return 0;
 }
 
 int SharpNSLS2::run(){
 
     Options* opt = Options::getOptions();
 
-    clock_t start_timer = clock(); //Start 
+    m_engine->iterate(opt->iterations);
 
-    // m_solver->run(opt->iterations);
-    for(int i = 0; i < opt->iterations; i++) {
-       m_engine->step();
-       // double diff =  (clock() - start_timer)/(double) CLOCKS_PER_SEC; 
-       // std::cout << i << ", time: " << diff << std::endl;
-       // start_timer = clock();
-    }
+    Counter::getCounter()->printTotals(m_communicator->getRank());
 
-   Counter::getCounter()->printTotals(m_communicator->getRank());
-
-   return 0;
+    return 0;
 }
 
 int SharpNSLS2::step(){
     return m_engine->step();
+}
+
+void SharpNSLS2::setGNode() {
+  isGNode = true;
+}
+
+boost::multi_array<std::complex<float>, 2>& SharpNSLS2::getImage(){
+  return m_engine->getImage();
 }
 
 void SharpNSLS2::writeImage(){
@@ -160,6 +194,5 @@ void SharpNSLS2::clean(){
     if(m_strategy) delete m_strategy;
     if(m_input_output) delete m_input_output;
     if(m_engine) delete m_engine;
-
 }
 

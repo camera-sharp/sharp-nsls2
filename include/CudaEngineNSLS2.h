@@ -12,17 +12,47 @@ class CudaEngineNSLS2: public CudaEngine
   /** Constructor */
   CudaEngineNSLS2();
 
+ public:
+
   // Engine API
 
   virtual void iterate(int steps);
 
  public:
 
-  // New fine-grained API
+  // Fine-grained API
 
   void init();
 
   int step();
+
+ public:
+
+  // Recon API
+
+  /** general feedback parameter */
+  void setBeta(float v);
+
+  /** espresso threshold coefficient */
+  void setAlpha(float v);
+
+  /** iteration number start updating probe */
+  void setStartUpdateProbe(int v);
+
+  /** iteration number start updating object */
+  void setStartUpdateObject(int v);
+
+  /** maximum object magnitude */
+  void setAmpMax(float v);
+
+  /** minimum object magnitude */
+  void setAmpMin(float v);
+
+  /** maximum object phase */
+  void setPhaMax(float v);
+
+  /** minimum object phase */
+  void setPhaMin(float v);
 
  protected:
 
@@ -69,16 +99,16 @@ class CudaEngineNSLS2: public CudaEngine
 
   // recon_ptycho parameters
 
-  int m_start_update_probe;
-  int m_start_update_object;
+  int m_start_update_probe; // iteration number start updating probe, 2
+  int m_start_update_object; // iteration number start updating object, 0
 
-  float m_alpha; // 1.e-8
-  float m_beta;  // 0.9
+  float m_alpha; // general feedback parameter, 1.e-8
+  float m_beta;  // espresso threshold coefficient, 0.9
 
-  float m_amp_max;  //  1.0
-  float m_amp_min;  //  0.0
-  float m_pha_max;  //  pi/2
-  float m_pha_min;  // -pi/2 
+  float m_amp_max;  // maximum object magnitude,  1.0
+  float m_amp_min;  //  minimum object magnitude, 0.0
+  float m_pha_max;  //  maximum object phase, pi/2
+  float m_pha_min;  // minimum object phase, -pi/2 
 
  protected:
 
