@@ -2,7 +2,7 @@
 #include <input_output.h>
 #include <communicator_mpi.h>
 #include <strategy.h>
-#include <CudaEngineNSLS2.h>
+#include <CudaEngineDM.h>
 #include <solver.h>
 #include <string>
 #include <unistd.h>
@@ -80,7 +80,7 @@ int SharpNSLS2::setArgs(int argc, char * argv[]){
   Options* opt = Options::getOptions();
   opt->parse_args(argc,argv);
 
-  m_engine = new CudaEngineNSLS2();
+  m_engine = new CudaEngineDM();
 
   m_engine->setWrapAround(opt->wrapAround);
 

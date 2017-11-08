@@ -6,7 +6,7 @@
 #include <string>
 #include "boost/multi_array.hpp"
 
-class CudaEngineNSLS2;
+class CudaEngineDM;
 class Communicator;
 class InputOutput;
 class Strategy;
@@ -80,7 +80,7 @@ class SharpNSLS2 {
 
  protected:
 
-  CudaEngineNSLS2* m_engine;
+  CudaEngineDM* m_engine;
   Communicator* m_communicator;
   InputOutput* m_input_output;
   Strategy* m_strategy;
