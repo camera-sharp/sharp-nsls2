@@ -31,7 +31,7 @@ class CudaEngineDM: public CudaEngine
 
  public:
 
-    // Recon API
+   // Recon Input API
 
   /** general feedback parameter */
   void setBeta(float v);
@@ -59,6 +59,18 @@ class CudaEngineDM: public CudaEngine
 
  public:
 
+  // Recon Output API
+
+  boost::multi_array<std::complex<float>, 2> & getObject();
+
+  boost::multi_array<std::complex<float>, 2> & getProbe();
+
+  float getObjectError() const;
+
+  float getProbeError() const;
+  
+ public:
+
   /** number of chunks */
   void setChunks(int nparts); 
 
@@ -78,9 +90,9 @@ class CudaEngineDM: public CudaEngine
 		   const DeviceRange<cusp::complex<float> > & frames_numerator,
 		   const DeviceRange<cusp::complex<float> > & frames_denominator);
 
-  double cal_obj_error(const DeviceRange<cusp::complex<float> > & obj_old);
+  void cal_obj_error(const DeviceRange<cusp::complex<float> > & obj_old);
 
-  double cal_prb_error(const DeviceRange<cusp::complex<float> > & prb_old);
+  void cal_prb_error(const DeviceRange<cusp::complex<float> > & prb_old);
 
   double cal_chi_error(const DeviceRange<cusp::complex<float> > & input_image, 
 		       const DeviceRange<cusp::complex<float> > & tmp_frames);
@@ -118,7 +130,10 @@ class CudaEngineDM: public CudaEngine
   float m_amp_max;  //  maximum object magnitude, 1.0
   float m_amp_min;  //  minimum object magnitude, 0.0
   float m_pha_max;  //  maximum object phase, pi/2
-  float m_pha_min;  // minimum object phase, -pi/2 
+  float m_pha_min;  // minimum object phase, -pi/2
+
+  float m_obj_error;
+  float m_prb_error;
 
  protected:
 

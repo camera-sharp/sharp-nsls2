@@ -2,17 +2,19 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-import h5py
 
-f = h5py.File('e1.cxi','r')
+
+object = np.load("object.npy")
+probe  = np.load("probe.npy")
+
 fig = plt.figure()
 plt.subplot(221)
-plt.imshow(abs(np.array(f['/entry_1/image_1/data'])))
+plt.imshow(abs(object))
 plt.subplot(222)
-plt.imshow(np.angle(np.array(f['/entry_1/image_1/data'])))
+plt.imshow(np.angle(object))
 plt.subplot(223)
-plt.imshow(np.abs(np.array(f['/entry_1/image_1/process_1/final_illumination'])))
+plt.imshow(np.abs(probe))
 plt.subplot(224)
-plt.imshow(np.angle(np.array(f['/entry_1/image_1/process_1/final_illumination'])))
+plt.imshow(np.angle(probe))
 plt.show()
 # plt.savefig('e1.png')

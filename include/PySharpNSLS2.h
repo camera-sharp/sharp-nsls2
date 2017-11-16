@@ -22,7 +22,13 @@ class PySharpNSLS2 : public SharpNSLS2 {
 
  public:
 
-   void setGNode(); 
+  // MPI/GPU interface
+
+  int getRank();
+
+  void setGNode();
+
+  void setChunks(int v);
 
  public:
 
@@ -31,7 +37,7 @@ class PySharpNSLS2 : public SharpNSLS2 {
 
  public:
 
-  // Recon API
+  // Recon Input API
 
   /** general feedback parameter */
   void setBeta(float v);
@@ -59,18 +65,30 @@ class PySharpNSLS2 : public SharpNSLS2 {
 
  public:
 
-  void setChunks(int v);
+    // Recon Output API
+
+    PyObject* getObject();
+
+    PyObject* getProbe();
+
+    float getObjectError();
+
+    float getProbeError();
 
  public:
 
   /** Initialize engine */
   int init();
 
-  /** Run all iterations */
-  int run();
-
   /** Run one iteration */
   int step();
+
+ public:
+
+  // Depricated interface
+
+  /** Run all iterations */
+  int run();  
 
   PyObject* getImage();
 
@@ -81,6 +99,8 @@ class PySharpNSLS2 : public SharpNSLS2 {
  protected:
 
   boost::multi_array<std::complex<float>, 2> m_image;
+  boost::multi_array<std::complex<float>, 2> m_object;
+  boost::multi_array<std::complex<float>, 2> m_probe;  
 
 };
 

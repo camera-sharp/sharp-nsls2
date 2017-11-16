@@ -24,7 +24,11 @@ class SharpNSLS2 {
 
  public:
 
+  int getRank();
+
   void setGNode();
+
+  void setChunks(int chunks);
 
  public:
 
@@ -33,7 +37,7 @@ class SharpNSLS2 {
 
  public:
 
-  // Recon API
+  // Recon Input API
 
   /** general feedback parameter */
   void setBeta(float v);
@@ -61,7 +65,15 @@ class SharpNSLS2 {
 
  public:
 
-    void setChunks(int chunks);
+  // Recon Output API
+
+  boost::multi_array<std::complex<float>, 2> & getObject();
+
+  boost::multi_array<std::complex<float>, 2> & getProbe();
+
+  float getObjectError();
+
+  float getProbeError();
 
  public:
 
@@ -73,6 +85,8 @@ class SharpNSLS2 {
 
   /** Run one iteration */
   int step();
+
+ public:
 
   boost::multi_array<std::complex<float>, 2>& getImage();
 

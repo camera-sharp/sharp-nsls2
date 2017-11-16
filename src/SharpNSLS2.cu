@@ -63,7 +63,29 @@ void SharpNSLS2::setPhaMin(float v){
      m_engine->setPhaMin(v);
 }
 
-//
+// Output
+
+boost::multi_array<std::complex<float>, 2>& SharpNSLS2::getObject(){
+  return m_engine->getObject();
+}
+
+boost::multi_array<std::complex<float>, 2>& SharpNSLS2::getProbe(){
+  return m_engine->getProbe();
+}
+
+float SharpNSLS2::getObjectError(){
+  return m_engine->getObjectError();
+}
+
+float SharpNSLS2::getProbeError(){
+  return m_engine->getProbeError();
+}
+
+// MPI/GPU interface
+
+int SharpNSLS2::getRank(){
+     return m_communicator->getRank();
+}
 
 void SharpNSLS2::setChunks(int v){
      m_engine->setChunks(v);
@@ -73,12 +95,12 @@ void SharpNSLS2::setChunks(int v){
 
 int SharpNSLS2::setArgs(int argc, char * argv[]){
 
-  clock_t start_timer = clock(); //Start 
+  // clock_t start_timer = clock(); //Start 
 
   clean();
 
-  double clean_timer = clock();
-  double diff =  (clean_timer - start_timer)/(double) CLOCKS_PER_SEC; 
+  // double clean_timer = clock();
+  // double diff =  (clean_timer - start_timer)/(double) CLOCKS_PER_SEC; 
   // std::cout << "SharpNSLS2::init, clean, time: " << diff << std::endl;
 
   int argc_copy = argc;
@@ -96,17 +118,15 @@ int SharpNSLS2::setArgs(int argc, char * argv[]){
     m_communicator = new CommunicatorMPI(argc, argv, m_engine);
   }
 
-  double comm_timer = clock();
-  diff =  (comm_timer - clean_timer)/(double) CLOCKS_PER_SEC; 
-
+  // double comm_timer = clock();
+  // diff =  (comm_timer - clean_timer)/(double) CLOCKS_PER_SEC; 
   // std::cout << "SharpNSLS2::init, communicator, time: " << diff << std::endl;
 
   m_input_output = new InputOutput(argc_copy,argv, m_communicator);  
   bool result = m_input_output->loadMetadata(opt->input_file.c_str());
 
-  double meta_timer = clock();
-  diff = (meta_timer - comm_timer)/(double) CLOCKS_PER_SEC;
-
+  // double meta_timer = clock();
+  // diff = (meta_timer - comm_timer)/(double) CLOCKS_PER_SEC;
   // std::cout << "SharpNSLS2::init, loading metadata, time: " << diff << std::endl;
 
   if(!result) {
@@ -122,16 +142,14 @@ int SharpNSLS2::setArgs(int argc, char * argv[]){
   m_strategy->setReciprocalSize(m_input_output->reciprocalSize());
   m_strategy->calculateDecomposition();
 
-  double strategy_timer = clock();
-  diff = (strategy_timer - meta_timer)/(double) CLOCKS_PER_SEC;
-
+  // double strategy_timer = clock();
+  // diff = (strategy_timer - meta_timer)/(double) CLOCKS_PER_SEC;
   // std::cout << "SharpNSLS2::init, strategy, time: " << diff << std::endl;
  
   m_input_output->loadMyFrames(opt->input_file.c_str(), m_strategy->myFrames());
 
-  double frames_timer = clock();
-  diff = (frames_timer - strategy_timer)/(double) CLOCKS_PER_SEC;
-
+  // double frames_timer = clock();
+  // diff = (frames_timer - strategy_timer)/(double) CLOCKS_PER_SEC;
   // std::cout << "SharpNSLS2::init, loading frames, time: " << diff << std::endl;
 
   m_solver = new Solver(m_engine, m_communicator, m_input_output, m_strategy);
@@ -148,7 +166,7 @@ int SharpNSLS2::setArgs(int argc, char * argv[]){
       exit(-1);
     }
 
-  diff = (clock() - frames_timer) / (double) CLOCKS_PER_SEC; 
+  // diff = (clock() - frames_timer) / (double) CLOCKS_PER_SEC; 
   // std::cout << "SharpNSLS2::init, solver, time: " << diff << std::endl;
 
   return 0;

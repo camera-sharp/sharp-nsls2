@@ -18,7 +18,7 @@ sharpNSLS2 = sharpnsls2.PySharpNSLS2()
 # Set the input parameters and initialize containers
 
 niters = 101
-args = ['local', '-o', '10',  '-i', '101', 'e1.cxi']
+args = ['local', 'e1.cxi']
 
 t1 = datetime.now();
 sharpNSLS2.setArgs(args)
@@ -38,19 +38,30 @@ sharpNSLS2.setAmpMin(0.0);
 sharpNSLS2.setPhaMax(math.pi/2);
 sharpNSLS2.setPhaMin(-math.pi/2);
 
-# Run the reconstruction algorithm
+# sharpNSLS2.setChunks(4);
+
+# Run the engine iterations
 
 sharpNSLS2.init()
 
 t1 = datetime.now();
-sharpNSLS2.run()
-# for i in range(niters):
-#    sharpNSLS2.step()   
+for i in range(niters):
+    sharpNSLS2.step()
+    print(i, "obj_err: ", sharpNSLS2.getObjectError(),
+          "prb_err: ", sharpNSLS2.getProbeError()) 
 t2 = datetime.now()
 
 print ("reconstruction time: ", (t2 - t1))
 
-# Write results of the reconstruction into the cxi file
+# Write results
 
-sharpNSLS2.writeImage()
+object = sharpNSLS2.getObject()
+np.save("object", object)
+
+probe = sharpNSLS2.getProbe()
+np.save("probe", probe)
+
+
+
+
 

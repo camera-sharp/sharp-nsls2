@@ -130,7 +130,9 @@ struct DataProj2 : public thrust::binary_function<T1,T2,T1>
 // typedef cusp::array1d<cusp::complex<float>,cusp::host_memory> cusp_complex_array;
 
 CudaEngineDM::CudaEngineDM()
- : CudaEngine(){ 
+ : CudaEngine(){
+
+  // Recon input parameters
 
    m_start_update_object = 0;
    m_start_update_probe  = 2;
@@ -143,10 +145,17 @@ CudaEngineDM::CudaEngineDM()
    m_pha_max =  3.14/2;
    m_pha_min = -3.14/2;
 
+   // Recon output parameters
+
+   m_obj_error = 0.0;
+   m_prb_error = 0.0;
+   
+   // MPI/GPU parameters
+   
    m_nparts = 1;
 }
 
-// Recon API
+// Recon Input API
 
 void CudaEngineDM::setAlpha(float v){
      m_alpha = v;
@@ -181,6 +190,23 @@ void CudaEngineDM::setPhaMin(float v){
      m_pha_min = v;
 }
 
+// Recon Output API
+
+boost::multi_array<std::complex<float>, 2> & CudaEngineDM::getObject(){
+	return ThrustEngine::getImage();
+}
+
+boost::multi_array<std::complex<float>, 2> & CudaEngineDM::getProbe(){
+	return ThrustEngine::getIllumination();
+}
+
+float CudaEngineDM::getObjectError() const {
+     return m_obj_error;
+}
+
+float CudaEngineDM::getProbeError() const {
+     return m_prb_error;
+}
 
 // recon: recon_ptycho
 
@@ -252,7 +278,7 @@ int CudaEngineDM::step(){
     // double sol_err = cal_sol_error();
     // std::cout << "sol_chi: " << sol_err << std::endl;
 
-    bool calculate_residual = (m_iteration % m_output_period == 0);
+    // bool calculate_residual = (m_iteration % m_output_period == 0);
 
     // Make sure to do a global synchronization in the last iteration
     bool do_sync = true; // ((m_iteration % m_global_period) == 0 ||  i == steps-1);
@@ -287,19 +313,25 @@ int CudaEngineDM::step(){
       }
     }
 
-   // print residuals
+   // calculate resudual
 
+   cal_obj_error(m_image_old);
+   cal_prb_error(m_prb_old);
+
+/*
     if(calculate_residual){
 
 	double obj_err = cal_obj_error(m_image_old);
 	double prb_err = cal_prb_error(m_prb_old);
-//	double chi_err = cal_chi_error(m_image, m_tmp);
+	double chi_err = cal_chi_error(m_image, m_tmp);
  
 	std::cout << m_iteration 
 	          << ", object_chi: " << obj_err 
 		  << ", probe_chi: " << prb_err
 		  << std::endl;
     }
+
+*/
 
 
 
@@ -592,7 +624,7 @@ void CudaEngineDM::cal_probe_trans(
 }
 
 
-double CudaEngineDM::cal_obj_error(const DeviceRange<cusp::complex<float> > & obj_old){
+void CudaEngineDM::cal_obj_error(const DeviceRange<cusp::complex<float> > & obj_old){
 
   // self.error_obj[it] = np.sqrt(np.sum(np.abs(self.obj - self.obj_old)**2)) / \
   //             np.sqrt(np.sum(np.abs(self.obj)**2))
@@ -607,10 +639,12 @@ double CudaEngineDM::cal_obj_error(const DeviceRange<cusp::complex<float> > & ob
 		float(0),
 		thrust::plus<float>()));
 
-   return diff_error/norm;
+  m_obj_error = diff_error/norm;
+
+  return;
 }
 
-double CudaEngineDM::cal_prb_error(const DeviceRange<cusp::complex<float> > & prb_old){
+void CudaEngineDM::cal_prb_error(const DeviceRange<cusp::complex<float> > & prb_old){
 
    // self.error_prb[it] = np.sqrt(np.sum(np.abs(self.prb - self.prb_old)**2)) / \
    //       np.sqrt(np.sum(np.abs(self.prb)**2))
@@ -625,7 +659,9 @@ double CudaEngineDM::cal_prb_error(const DeviceRange<cusp::complex<float> > & pr
 		float(0),
 		thrust::plus<float>()));
 
-   return diff_error/norm;
+    m_prb_error = diff_error/norm;
+
+   return;
 }
 
 double CudaEngineDM::cal_chi_error(const DeviceRange<cusp::complex<float> > & image,
