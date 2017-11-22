@@ -24,14 +24,6 @@ class SharpNSLS2 {
 
  public:
 
-  int getRank();
-
-  void setGNode();
-
-  void setChunks(int chunks);
-
- public:
-
   /** set the SHARP variables with command arguments */
   int setArgs(int argc, char * argv[]);
 
@@ -63,6 +55,18 @@ class SharpNSLS2 {
   /** minimum object phase */
   void setPhaMin(float v);
 
+  void setInitObject(const boost::multi_array<std::complex<float>, 2> & object);
+
+  void setInitProbe(const boost::multi_array<std::complex<float>, 2> & probe);
+  
+  public:
+
+  // MPI/GPU Input
+
+  void setGNode();
+
+  void setChunks(int chunks);
+
  public:
 
   // Recon Output API
@@ -75,26 +79,35 @@ class SharpNSLS2 {
 
   float getProbeError();
 
+  public:
+
+  // MPI/GPU Output
+
+  int getRank();
+
  public:
 
   /** Initialize engine */
   int init();
-
-  /** Run all iterations */
-  int run();
 
   /** Run one iteration */
   int step();
 
  public:
 
+  // depricated
+
+  int run(); 
+
   boost::multi_array<std::complex<float>, 2>& getImage();
 
   void writeImage();
 
-  void clean();
-
   std::string getInputFile();
+
+ protected:
+
+   void clean();
 
  protected:
 
@@ -106,7 +119,35 @@ class SharpNSLS2 {
 
  protected:
 
+  // Recon input parameters
+
+  int m_start_update_probe;  // iteration number start updating probe, 2
+  int m_start_update_object; // iteration number start updating object, 0
+
+  float m_alpha; // espresso threshold coefficient, 1.e-8
+  float m_beta;  // general feedback parameter, 0.9
+
+  float m_amp_max;  //  maximum object magnitude, 1.0
+  float m_amp_min;  //  minimum object magnitude, 0.0
+  float m_pha_max;  //  maximum object phase, pi/2
+  float m_pha_min;  // minimum object phase, -pi/2
+
+  bool m_has_init_probe;
+  boost::multi_array<std::complex<float>, 2> m_init_probe;
+
+  bool m_has_init_object;
+  boost::multi_array<std::complex<float>, 2> m_init_object;
+
+  // MPI/GPU parameters
+
   bool isGNode;
+
+  int m_chunks;
+
+  // SHARP input parameters
+
+
+
 
 };
 

@@ -57,6 +57,10 @@ class CudaEngineDM: public CudaEngine
   /** minimum object phase */
   void setPhaMin(float v);
 
+  void setInitProbe(const boost::multi_array<std::complex<float>, 2> & probe);
+
+  void setInitObject(const boost::multi_array<std::complex<float>, 2> & object); 
+
  public:
 
   // Recon Output API
@@ -131,6 +135,11 @@ class CudaEngineDM: public CudaEngine
   float m_amp_min;  //  minimum object magnitude, 0.0
   float m_pha_max;  //  maximum object phase, pi/2
   float m_pha_min;  // minimum object phase, -pi/2
+
+  boost::multi_array<cusp::complex<float>, 2> m_init_probe;
+  boost::multi_array<cusp::complex<float>, 2> m_init_object;
+
+  // output
 
   float m_obj_error;
   float m_prb_error;

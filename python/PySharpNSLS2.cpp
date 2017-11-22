@@ -41,6 +41,52 @@ void PySharpNSLS2::setPhaMin(float v){
   SharpNSLS2::setPhaMin(v);  
 }
 
+void PySharpNSLS2::setInitObject(PyObject* pyObject){
+
+  PyArrayObject* pyArray = (PyArrayObject*) pyObject;
+  
+  int ndims = PyArray_NDIM(pyArray);
+  npy_intp* shape = PyArray_DIMS(pyArray);
+  int xdim = shape[0];
+  int ydim = shape[1];
+  std::complex<float>* data = (std::complex<float>*) PyArray_DATA(pyArray);
+  
+  boost::multi_array<std::complex<float>, 2> initObject;
+  initObject.resize(boost::extents[xdim][ydim]);
+  std::complex<float>* dest = initObject.data();
+  
+  for(int i = 0; i < xdim*ydim; i++){
+    dest[i] = data[i];
+  }
+  
+  SharpNSLS2::setInitObject(initObject);  
+  
+}
+
+void PySharpNSLS2::setInitProbe(PyObject* pyObject){
+  PyArrayObject* pyArray = (PyArrayObject*) pyObject;
+  
+  int ndims = PyArray_NDIM(pyArray);
+  npy_intp* shape = PyArray_DIMS(pyArray);
+  int xdim = shape[0];
+  int ydim = shape[1];
+
+  // PyArray_Descr* descr = PyArray_DTYPE(PyArrayObject* arr);
+  std::cout << "setInitProbe: ndims: " << ndims << ", xdim: " << xdim << ", ydim: " << ydim << std::endl;
+  
+  std::complex<float>* data = (std::complex<float>*) PyArray_DATA(pyArray);
+  
+  boost::multi_array<std::complex<float>, 2> initProbe;
+  initProbe.resize(boost::extents[xdim][ydim]);
+  std::complex<float>* dest = initProbe.data();
+  
+  for(int i = 0; i < xdim*ydim; i++){
+    dest[i] = data[i];
+  }
+  
+  SharpNSLS2::setInitProbe(initProbe);  
+}
+
 // Recon Output API
 
 PyObject* PySharpNSLS2::getObject(){

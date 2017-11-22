@@ -190,6 +190,38 @@ void CudaEngineDM::setPhaMin(float v){
      m_pha_min = v;
 }
 
+void CudaEngineDM::setInitProbe(const boost::multi_array<std::complex<float>, 2> & probe){
+
+     int xdim = probe.shape()[0];
+     int ydim = probe.shape()[1];
+     m_init_probe.resize(boost::extents[xdim][ydim]);
+
+     const std::complex<float>* data = probe.data();
+     std::complex<float>* dest = (std::complex<float>*) m_init_probe.data();
+
+     for(int ip = 0; ip < xdim*ydim; ip++){
+       dest[ip] = data[ip];
+     }
+
+     ThrustEngine::setIllumination(HostRange<cusp::complex<float> >(m_init_probe));
+}
+
+void CudaEngineDM::setInitObject(const boost::multi_array<std::complex<float>, 2> & object){
+
+     int xdim = object.shape()[0];
+     int ydim = object.shape()[1];
+     m_init_object.resize(boost::extents[xdim][ydim]);
+
+     const std::complex<float>* data = object.data();
+     std::complex<float>* dest = (std::complex<float>*) m_init_object.data();
+
+     for(int ip = 0; ip < xdim*ydim; ip++){
+       dest[ip] = data[ip];
+     }
+
+     ThrustEngine::setImage(HostRange<cusp::complex<float> >(m_init_object));
+}
+
 // Recon Output API
 
 boost::multi_array<std::complex<float>, 2> & CudaEngineDM::getObject(){

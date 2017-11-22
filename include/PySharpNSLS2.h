@@ -63,6 +63,10 @@ class PySharpNSLS2 : public SharpNSLS2 {
   /** minimum object phase */
   void setPhaMin(float v);
 
+  void setInitObject(PyObject* object);
+
+  void setInitProbe(PyObject* probe);
+
  public:
 
     // Recon Output API
