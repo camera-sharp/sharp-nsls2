@@ -41,6 +41,64 @@ void PySharpNSLS2::setPhaMin(float v){
   SharpNSLS2::setPhaMin(v);  
 }
 
+void PySharpNSLS2::setZ(float v){
+  SharpNSLS2::setZ(v);  
+}
+
+void PySharpNSLS2::setLambda(float v){
+  SharpNSLS2::setLambda(v);  
+}
+
+void PySharpNSLS2::setPixelSize(float v){
+  SharpNSLS2::setPixelSize(v);  
+}
+
+
+//
+
+void PySharpNSLS2::setScan(PyObject* pyObject){
+
+  PyArrayObject* pyArray = (PyArrayObject*) pyObject;
+  
+  int ndims = PyArray_NDIM(pyArray);
+  npy_intp* shape = PyArray_DIMS(pyArray);
+  int xdim = shape[0];
+  int ydim = shape[1];
+  double* data = (double*) PyArray_DATA(pyArray);
+  
+  boost::multi_array<double, 2> scan;
+  scan.resize(boost::extents[xdim][ydim]);
+  double* dest = scan.data();
+  
+  for(int i = 0; i < xdim*ydim; i++){
+    dest[i] = data[i];
+  }
+  
+  SharpNSLS2::setScan(scan);  
+}
+
+void PySharpNSLS2::setFrames(PyObject* pyFrames){
+
+  PyArrayObject* pyArray = (PyArrayObject*) pyFrames;
+  
+  int ndims = PyArray_NDIM(pyArray);
+  npy_intp* shape = PyArray_DIMS(pyArray);
+  int nframes = shape[0];
+  int xdim    = shape[1];
+  int ydim    = shape[2];
+  float* data = (float*) PyArray_DATA(pyArray);
+
+  boost::multi_array<float, 3> frames;
+  frames.resize(boost::extents[nframes][xdim][ydim]);
+  float* dest = frames.data();
+  
+  for(int i = 0; i < nframes*xdim*ydim; i++){
+    dest[i] = data[i];
+  }
+
+  SharpNSLS2::setFrames(frames);  
+}
+
 void PySharpNSLS2::setInitObject(PyObject* pyObject){
 
   PyArrayObject* pyArray = (PyArrayObject*) pyObject;
@@ -72,7 +130,7 @@ void PySharpNSLS2::setInitProbe(PyObject* pyObject){
   int ydim = shape[1];
 
   // PyArray_Descr* descr = PyArray_DTYPE(PyArrayObject* arr);
-  std::cout << "setInitProbe: ndims: " << ndims << ", xdim: " << xdim << ", ydim: " << ydim << std::endl;
+  // std::cout << "setInitProbe: ndims: " << ndims << ", xdim: " << xdim << ", ydim: " << ydim << std::endl;
   
   std::complex<float>* data = (std::complex<float>*) PyArray_DATA(pyArray);
   
@@ -145,9 +203,6 @@ void PySharpNSLS2::setChunks(int v){
 
 //
 
-
-
-
 int PySharpNSLS2::setArgs(int argc, char * argv[]){
   
   int status = SharpNSLS2::setArgs(argc, argv);
@@ -158,16 +213,16 @@ int PySharpNSLS2::init(){
   return SharpNSLS2::init();
 }
 
-
-int PySharpNSLS2::run(){
-  return SharpNSLS2::run();
-}
-
 int PySharpNSLS2::step(){
   return SharpNSLS2::step();
 }
 
 // Depricated interface
+
+
+int PySharpNSLS2::run(){
+  return SharpNSLS2::run();
+}
 
 PyObject* PySharpNSLS2::getImage(){
 

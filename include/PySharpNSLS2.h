@@ -63,8 +63,27 @@ class PySharpNSLS2 : public SharpNSLS2 {
   /** minimum object phase */
   void setPhaMin(float v);
 
+  /** detector distance [m] */
+  void setZ(float v);
+
+  /** wavelength, nm */
+  void setLambda(float v);
+
+  /** ccd pixel size, um */
+  void setPixelSize(float v);
+
+ public:
+
+  /** scan points (2d array of doubles) */
+  void setScan(PyObject* object);
+
+  /** detector frames (3d array of floats) */
+  void setFrames(PyObject* object);
+
+  /** initial object (2d array of complex floats) */
   void setInitObject(PyObject* object);
 
+  /** initial probe (2d array of complex floats) */
   void setInitProbe(PyObject* probe);
 
  public:

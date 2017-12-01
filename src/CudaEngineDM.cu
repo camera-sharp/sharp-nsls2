@@ -225,10 +225,12 @@ void CudaEngineDM::setInitObject(const boost::multi_array<std::complex<float>, 2
 // Recon Output API
 
 boost::multi_array<std::complex<float>, 2> & CudaEngineDM::getObject(){
+        // update and return ThrustEngine::m_host_image
 	return ThrustEngine::getImage();
 }
 
 boost::multi_array<std::complex<float>, 2> & CudaEngineDM::getProbe(){
+        // update and return ThrustEngine::m_host_illumination
 	return ThrustEngine::getIllumination();
 }
 

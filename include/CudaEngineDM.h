@@ -57,8 +57,10 @@ class CudaEngineDM: public CudaEngine
   /** minimum object phase */
   void setPhaMin(float v);
 
+  /** initial probe */
   void setInitProbe(const boost::multi_array<std::complex<float>, 2> & probe);
 
+  /** initial object */
   void setInitObject(const boost::multi_array<std::complex<float>, 2> & object); 
 
  public:

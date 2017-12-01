@@ -55,6 +55,21 @@ class SharpNSLS2 {
   /** minimum object phase */
   void setPhaMin(float v);
 
+  /** detector distance, m */
+  void setZ(float v);
+
+  /** wavelength, nm */
+  void setLambda(float v);
+
+  /** ccd pixel size, um */
+  void setPixelSize(float v);
+
+ public:
+
+  void setScan(const boost::multi_array<double, 2> & scan);
+
+  void setFrames(const boost::multi_array<float, 3>& frames);
+
   void setInitObject(const boost::multi_array<std::complex<float>, 2> & object);
 
   void setInitProbe(const boost::multi_array<std::complex<float>, 2> & probe);
@@ -111,11 +126,48 @@ class SharpNSLS2 {
 
  protected:
 
+  // Solver::initialize
+
+  int initSolver();
+
+ protected:
+
+  // InputOutput interface
+
+  boost::multi_array<double, 2> & allTranslations();
+  boost::multi_array<double, 2> & translation();
+
+  // frames
+
+  void loadMyFrames(const std::vector<int> & frames);
+  void genMeanBackground();
+
+  int getTotalFrameCount();
+  boost::multi_array<float, 3> & frames();
+  std::vector<int> framesSize();
+
+  void calculateReciprocalSize();
+  std::vector<double> reciprocalSize();
+
+  // illumination
+
+  boost::multi_array<std::complex<float>, 2> & illumination_mask();
+  boost::multi_array<float, 2> & illumination_intensities();
+
+ protected:
+
   CudaEngineDM* m_engine;
   Communicator* m_communicator;
   InputOutput* m_input_output;
   Strategy* m_strategy;
-  Solver* m_solver;
+  //  Solver* m_solver;
+
+ protected:
+
+  // MPI/GPU parameters
+
+  bool isGNode;
+  int m_chunks;
 
  protected:
 
@@ -132,22 +184,52 @@ class SharpNSLS2 {
   float m_pha_max;  //  maximum object phase, pi/2
   float m_pha_min;  // minimum object phase, -pi/2
 
+  float m_z_m;               // detector distance, 0.0
+  float m_lambda_nm;         // wavelength (nm), 0.0 
+  float m_ccd_pixel_um;      // ccd_pixel_um, 0.0
+
+ protected:
+
+  // Input
+
+  // translations defined by setScan
+
+  bool m_has_scan; 
+  boost::multi_array<double, 2> m_all_translations; 
+  
+  boost::multi_array<double, 2> m_translation;
+
+  // initial probe defined by setInitProbe
+
   bool m_has_init_probe;
   boost::multi_array<std::complex<float>, 2> m_init_probe;
+
+  // initial image defined by setInitObject
 
   bool m_has_init_object;
   boost::multi_array<std::complex<float>, 2> m_init_object;
 
-  // MPI/GPU parameters
+  // frames
 
-  bool isGNode;
+  int m_total_n_frames;
+  int m_frames_width;
+  int m_frames_height;
 
-  int m_chunks;
+  bool m_has_frames;
+  boost::multi_array<float, 3> m_frames;
 
-  // SHARP input parameters
+  std::vector<float> m_center;
 
+  // Size of the frames in reciprocal space
+  std::vector<double> m_reciprocal_size;
 
+ protected:
 
+   // not used
+   
+   boost::multi_array<float, 2> m_mean_background;
+   boost::multi_array<std::complex<float>, 2> m_illumination_mask;
+   boost::multi_array<float, 2> m_illumination_intensities;
 
 };
 
