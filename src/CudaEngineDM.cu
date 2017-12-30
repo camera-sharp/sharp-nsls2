@@ -589,6 +589,9 @@ void CudaEngineDM::cal_probe_trans(
   
     for (int i=0; i < m_nparts; i++){
 
+      thrust::device_vector<cusp::complex<float> > illumination_numerator_part(m_illumination.size());
+      thrust::device_vector<cusp::complex<float> > illumination_denominator_part(m_illumination.size());
+
       frames_it1 = frames_it0 + i*part;
       frames_it2 = frames_it1 + part;
 
@@ -622,7 +625,7 @@ void CudaEngineDM::cal_probe_trans(
  
       // shiftedSum(frames_numerator, illumination_numerator);
       shifted_sum(frames_numerator.data(),
-		  thrust::raw_pointer_cast(illumination_numerator.data()),
+		  thrust::raw_pointer_cast(illumination_numerator_part.data()),
 	          thrust::raw_pointer_cast(m_frames_corners.data()) + iFrame, // add iFrame
  	          m_frame_width, m_frame_height,
 		  pFrames);  // replace m_nframes with pFrames
@@ -630,11 +633,30 @@ void CudaEngineDM::cal_probe_trans(
 
       // shiftedSum(frames_denominator, illumination_denominator);
       shifted_sum(frames_denominator.data(),
-		  thrust::raw_pointer_cast(illumination_denominator.data()),
+		  thrust::raw_pointer_cast(illumination_denominator_part.data()),
 	          thrust::raw_pointer_cast(m_frames_corners.data()) + iFrame, // add iFrame
  	          m_frame_width, m_frame_height,
 		  pFrames);  // replace m_nframes with pFrames
+
+      // sum chunks
+
+         thrust::transform(illumination_numerator_part.begin(),
+	              illumination_numerator_part.end(),
+		      illumination_numerator.begin(),                
+		      illumination_numerator.begin(),
+		      thrust::plus<cusp::complex<float> >());
+
+         thrust::transform(illumination_denominator_part.begin(),
+	              illumination_denominator_part.end(),
+		      illumination_denominator.begin(),                
+		      illumination_denominator.begin(),
+		      thrust::plus<cusp::complex<float> >());
+
     }
+
+    float f = 1./m_nparts;
+    cusp::blas::scal(illumination_numerator, f);
+    cusp::blas::scal(illumination_denominator, f);
 
     cusp::complex<float> regularization = thrust::reduce(illumination_denominator.begin(),
 							 illumination_denominator.end(),
