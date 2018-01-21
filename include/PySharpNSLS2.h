@@ -98,6 +98,20 @@ class PySharpNSLS2 : public SharpNSLS2 {
 
     float getProbeError();
 
+    // Sharp
+
+    PyObject* getProducts();
+
+    PyObject* getFramesCorners();
+
+    PyObject* getImageScale();
+
+    PyObject* getIlluminatedArea();
+
+    PyObject* getOverlapingFrames();
+
+    PyObject* getOverlapingFramesIndex();   
+
  public:
 
   /** Initialize engine */
@@ -123,8 +137,14 @@ class PySharpNSLS2 : public SharpNSLS2 {
 
   boost::multi_array<std::complex<float>, 2> m_image;
   boost::multi_array<std::complex<float>, 2> m_object;
-  boost::multi_array<std::complex<float>, 2> m_probe;  
-
+  boost::multi_array<std::complex<float>, 2> m_probe;
+  boost::multi_array<std::complex<float>, 3> m_products; 
+  boost::multi_array<std::complex<float>, 1> m_corners;
+  boost::multi_array<std::complex<float>, 2> m_imageScale;
+  boost::multi_array<std::complex<float>, 2> m_illuminatedArea;
+  boost::multi_array<int, 1> m_overlaping_frames;
+  boost::multi_array<int, 1> m_overlaping_frames_index;
+  
 };
 
 #endif

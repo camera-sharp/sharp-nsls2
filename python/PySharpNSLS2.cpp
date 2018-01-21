@@ -179,6 +179,100 @@ PyObject* PySharpNSLS2::getProbe(){
   return PyArray_SimpleNewFromData(2, dims, NPY_COMPLEX64, (void *) m_probe.data()); 
 }
 
+PyObject* PySharpNSLS2::getProducts(){
+
+  boost::multi_array<std::complex<float>, 3>& products = SharpNSLS2::getFrames();
+
+  int n    = products.shape()[0];
+  int xdim = products.shape()[1];
+  int ydim = products.shape()[2];
+
+  std::cout << "products: n: " << n << ", xdim: " << xdim << ", ydim: " << ydim << std::endl;
+
+  m_products.resize(boost::extents[n][xdim][ydim]);
+  m_products = products;
+
+  npy_intp dims[] = {n, xdim, ydim};
+  return PyArray_SimpleNewFromData(3, dims, NPY_COMPLEX64, (void *) m_products.data()); 
+}
+
+PyObject* PySharpNSLS2::getFramesCorners(){
+
+  boost::multi_array<std::complex<float>, 1>& corners = SharpNSLS2::getFramesCorners();
+
+  int n    = corners.shape()[0];
+ 
+  std::cout << "corners: n: " << n << std::endl;
+
+  m_corners.resize(boost::extents[n]);
+  m_corners = corners;
+
+  npy_intp dims[] = {n};
+  return PyArray_SimpleNewFromData(1, dims, NPY_COMPLEX64, (void *) m_corners.data()); 
+}
+
+PyObject* PySharpNSLS2::getOverlapingFrames(){
+
+  boost::multi_array<int, 1>& overlaping_frames = SharpNSLS2::getOverlapingFrames();
+
+  int n    = overlaping_frames.shape()[0];
+ 
+  std::cout << "overlaping_frames: n: " << n << std::endl;
+
+  m_overlaping_frames.resize(boost::extents[n]);
+  m_overlaping_frames = overlaping_frames;
+
+  npy_intp dims[] = {n};
+  return PyArray_SimpleNewFromData(1, dims, NPY_INT, (void *) m_overlaping_frames.data()); 
+}
+
+PyObject* PySharpNSLS2::getOverlapingFramesIndex(){
+
+  boost::multi_array<int, 1>& overlaping_frames_index = SharpNSLS2::getOverlapingFramesIndex();
+
+  int n    = overlaping_frames_index.shape()[0];
+ 
+  std::cout << "overlaping_frames_index: n: " << n << std::endl;
+
+  m_overlaping_frames_index.resize(boost::extents[n]);
+  m_overlaping_frames_index = overlaping_frames_index;
+
+  npy_intp dims[] = {n};
+  return PyArray_SimpleNewFromData(1, dims, NPY_INT, (void *) m_overlaping_frames_index.data()); 
+}
+
+PyObject* PySharpNSLS2::getImageScale(){
+
+  boost::multi_array<std::complex<float>, 2>& imageScale = SharpNSLS2::getImageScale();
+
+  int xdim = imageScale.shape()[0];
+  int ydim = imageScale.shape()[1];
+
+  // std::cout << "object: xdim: " << xdim << ", ydim: " << ydim << std::endl;
+
+  m_imageScale.resize(boost::extents[xdim][ydim]);
+  m_imageScale = imageScale;
+
+  npy_intp dims[] = {xdim, ydim};
+  return PyArray_SimpleNewFromData(2, dims, NPY_COMPLEX64, (void *) m_imageScale.data()); 
+}
+
+PyObject* PySharpNSLS2::getIlluminatedArea(){
+
+  boost::multi_array<std::complex<float>, 2>& area = SharpNSLS2::getIlluminatedArea();
+
+  int xdim = area.shape()[0];
+  int ydim = area.shape()[1];
+
+  // std::cout << "object: xdim: " << xdim << ", ydim: " << ydim << std::endl;
+
+  m_illuminatedArea.resize(boost::extents[xdim][ydim]);
+  m_illuminatedArea = area;
+
+  npy_intp dims[] = {xdim, ydim};
+  return PyArray_SimpleNewFromData(2, dims, NPY_COMPLEX64, (void *) m_illuminatedArea.data()); 
+}
+
 float PySharpNSLS2::getObjectError(){
   return SharpNSLS2::getObjectError();  
 }

@@ -90,6 +90,18 @@ class SharpNSLS2 {
 
   boost::multi_array<std::complex<float>, 2> & getProbe();
 
+  boost::multi_array<std::complex<float>, 3> & getFrames();
+
+  boost::multi_array<std::complex<float>, 1> & getFramesCorners();
+
+  boost::multi_array<std::complex<float>, 2> & getImageScale();
+
+  boost::multi_array<std::complex<float>, 2> & getIlluminatedArea();
+
+  boost::multi_array< int, 1> & getOverlapingFrames();
+
+  boost::multi_array< int, 1> & getOverlapingFramesIndex(); 
+ 
   float getObjectError();
 
   float getProbeError();

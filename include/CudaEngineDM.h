@@ -71,6 +71,18 @@ class CudaEngineDM: public CudaEngine
 
   boost::multi_array<std::complex<float>, 2> & getProbe();
 
+  boost::multi_array<std::complex<float>, 3> & getFrames();
+
+  boost::multi_array<std::complex<float>, 1> & getFramesCorners();
+
+  boost::multi_array<std::complex<float>, 2> & getImageScale();
+
+  boost::multi_array<std::complex<float>, 2> & getIlluminatedArea();
+
+  boost::multi_array< int, 1> & getOverlapingFrames();
+
+  boost::multi_array< int, 1> & getOverlapingFramesIndex(); 
+
   float getObjectError() const;
 
   float getProbeError() const;
@@ -138,8 +150,17 @@ class CudaEngineDM: public CudaEngine
   float m_pha_max;  //  maximum object phase, pi/2
   float m_pha_min;  // minimum object phase, -pi/2
 
+  float m_sigma1;  // normalization weighting factor, 1.e-10
+  float m_sigma2;  // normalization weighting factor, 5.e-5
+
   boost::multi_array<cusp::complex<float>, 2> m_init_probe;
   boost::multi_array<cusp::complex<float>, 2> m_init_object;
+  boost::multi_array<std::complex<float>, 1> m_host_corners;
+  boost::multi_array<std::complex<float>, 2> m_host_image_scale;
+  boost::multi_array<std::complex<float>, 2> m_host_illuminated_area;
+
+  boost::multi_array<int, 1> m_host_overlaping_frames;
+  boost::multi_array<int, 1> m_host_overlaping_frames_index;  
 
   // output
 

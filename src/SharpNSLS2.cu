@@ -171,6 +171,30 @@ boost::multi_array<std::complex<float>, 2>& SharpNSLS2::getProbe(){
   return m_engine->getProbe();
 }
 
+boost::multi_array<std::complex<float>, 3> & SharpNSLS2::getFrames(){
+  return m_engine->getFrames();
+}
+
+boost::multi_array<std::complex<float>, 1> & SharpNSLS2::getFramesCorners(){
+  return m_engine->getFramesCorners();
+}
+
+boost::multi_array<std::complex<float>, 2>& SharpNSLS2::getImageScale(){
+  return m_engine->getImageScale();
+}
+
+boost::multi_array<std::complex<float>, 2>& SharpNSLS2::getIlluminatedArea(){
+  return m_engine->getIlluminatedArea();
+}
+
+boost::multi_array<int, 1> & SharpNSLS2::getOverlapingFrames(){
+  return m_engine->getOverlapingFrames();
+}
+
+boost::multi_array<int, 1> & SharpNSLS2::getOverlapingFramesIndex(){
+  return m_engine->getOverlapingFramesIndex();
+}
+
 float SharpNSLS2::getObjectError(){
   return m_engine->getObjectError();
 }
