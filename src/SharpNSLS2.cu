@@ -97,8 +97,6 @@ void SharpNSLS2::setPhaMin(float v){
      m_pha_min = v;
 }
 
-//
-
 void SharpNSLS2::setZ(float v){
      m_z_m = v;
 }
@@ -171,6 +169,16 @@ boost::multi_array<std::complex<float>, 2>& SharpNSLS2::getProbe(){
   return m_engine->getProbe();
 }
 
+float SharpNSLS2::getObjectError(){
+  return m_engine->getObjectError();
+}
+
+float SharpNSLS2::getProbeError(){
+  return m_engine->getProbeError();
+}
+
+// SHARP internal containers
+
 boost::multi_array<std::complex<float>, 3> & SharpNSLS2::getFrames(){
   return m_engine->getFrames();
 }
@@ -195,12 +203,20 @@ boost::multi_array<int, 1> & SharpNSLS2::getOverlapingFramesIndex(){
   return m_engine->getOverlapingFramesIndex();
 }
 
-float SharpNSLS2::getObjectError(){
-  return m_engine->getObjectError();
+boost::multi_array<std::complex<float>, 2>& SharpNSLS2::getIlluminationNumerator(){
+  return m_engine->getIlluminationNumerator();
 }
 
-float SharpNSLS2::getProbeError(){
-  return m_engine->getProbeError();
+boost::multi_array<std::complex<float>, 2>& SharpNSLS2::getIlluminationDenominator(){
+  return m_engine->getIlluminationDenominator();
+}
+
+boost::multi_array<std::complex<float>, 3> & SharpNSLS2::getPrbObj(){
+  return m_engine->getPrbObj();
+}
+
+boost::multi_array<std::complex<float>, 3> & SharpNSLS2::getTmp2(){
+  return m_engine->getTmp2();
 }
 
 // MPI/GPU output

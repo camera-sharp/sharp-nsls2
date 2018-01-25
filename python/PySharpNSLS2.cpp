@@ -179,6 +179,16 @@ PyObject* PySharpNSLS2::getProbe(){
   return PyArray_SimpleNewFromData(2, dims, NPY_COMPLEX64, (void *) m_probe.data()); 
 }
 
+float PySharpNSLS2::getObjectError(){
+  return SharpNSLS2::getObjectError();  
+}
+
+float PySharpNSLS2::getProbeError(){
+  return SharpNSLS2::getProbeError();  
+}
+
+// SHARP internal containers
+
 PyObject* PySharpNSLS2::getProducts(){
 
   boost::multi_array<std::complex<float>, 3>& products = SharpNSLS2::getFrames();
@@ -273,13 +283,72 @@ PyObject* PySharpNSLS2::getIlluminatedArea(){
   return PyArray_SimpleNewFromData(2, dims, NPY_COMPLEX64, (void *) m_illuminatedArea.data()); 
 }
 
-float PySharpNSLS2::getObjectError(){
-  return SharpNSLS2::getObjectError();  
+PyObject* PySharpNSLS2::getIlluminationNumerator(){
+
+  boost::multi_array<std::complex<float>, 2>& numerator = SharpNSLS2::getIlluminationNumerator();
+
+  int xdim = numerator.shape()[0];
+  int ydim = numerator.shape()[1];
+
+  // std::cout << "object: xdim: " << xdim << ", ydim: " << ydim << std::endl;
+
+  m_illuminationNumerator.resize(boost::extents[xdim][ydim]);
+  m_illuminationNumerator = numerator;
+
+  npy_intp dims[] = {xdim, ydim};
+  return PyArray_SimpleNewFromData(2, dims, NPY_COMPLEX64, (void *) m_illuminationNumerator.data()); 
 }
 
-float PySharpNSLS2::getProbeError(){
-  return SharpNSLS2::getProbeError();  
+PyObject* PySharpNSLS2::getIlluminationDenominator(){
+
+  boost::multi_array<std::complex<float>, 2>& denominator = SharpNSLS2::getIlluminationDenominator();
+
+  int xdim = denominator.shape()[0];
+  int ydim = denominator.shape()[1];
+
+  // std::cout << "object: xdim: " << xdim << ", ydim: " << ydim << std::endl;
+
+  m_illuminationDenominator.resize(boost::extents[xdim][ydim]);
+  m_illuminationDenominator = denominator;
+
+  npy_intp dims[] = {xdim, ydim};
+  return PyArray_SimpleNewFromData(2, dims, NPY_COMPLEX64, (void *) m_illuminationDenominator.data()); 
 }
+
+PyObject* PySharpNSLS2::getPrbObj(){
+
+  boost::multi_array<std::complex<float>, 3>& prb_obj = SharpNSLS2::getPrbObj();
+
+  int n    = prb_obj.shape()[0];
+  int xdim = prb_obj.shape()[1];
+  int ydim = prb_obj.shape()[2];
+
+  std::cout << "prb_obj: n: " << n << ", xdim: " << xdim << ", ydim: " << ydim << std::endl;
+
+  m_prb_obj.resize(boost::extents[n][xdim][ydim]);
+  m_prb_obj = prb_obj;
+
+  npy_intp dims[] = {n, xdim, ydim};
+  return PyArray_SimpleNewFromData(3, dims, NPY_COMPLEX64, (void *) m_prb_obj.data()); 
+}
+
+PyObject* PySharpNSLS2::getTmp2(){
+
+  boost::multi_array<std::complex<float>, 3>& tmp2 = SharpNSLS2::getTmp2();
+
+  int n    = tmp2.shape()[0];
+  int xdim = tmp2.shape()[1];
+  int ydim = tmp2.shape()[2];
+
+  std::cout << "tmp2: n: " << n << ", xdim: " << xdim << ", ydim: " << ydim << std::endl;
+
+  m_tmp2.resize(boost::extents[n][xdim][ydim]);
+  m_tmp2 = tmp2;
+
+  npy_intp dims[] = {n, xdim, ydim};
+  return PyArray_SimpleNewFromData(3, dims, NPY_COMPLEX64, (void *) m_tmp2.data()); 
+}
+
 
 // MPI/GPU interface
 

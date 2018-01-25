@@ -71,21 +71,38 @@ class CudaEngineDM: public CudaEngine
 
   boost::multi_array<std::complex<float>, 2> & getProbe();
 
+  float getObjectError() const;
+
+  float getProbeError() const;
+
+ public:
+
+  // SHARP internal containers
+
   boost::multi_array<std::complex<float>, 3> & getFrames();
 
   boost::multi_array<std::complex<float>, 1> & getFramesCorners();
 
-  boost::multi_array<std::complex<float>, 2> & getImageScale();
-
-  boost::multi_array<std::complex<float>, 2> & getIlluminatedArea();
+  // used in cal_object_trans
 
   boost::multi_array< int, 1> & getOverlapingFrames();
 
-  boost::multi_array< int, 1> & getOverlapingFramesIndex(); 
+  boost::multi_array< int, 1> & getOverlapingFramesIndex();
+  
+  boost::multi_array<std::complex<float>, 2> & getIlluminatedArea();
+  
+  boost::multi_array<std::complex<float>, 2> & getImageScale();
 
-  float getObjectError() const;
+  // used in cal_probe_trans
 
-  float getProbeError() const;
+  boost::multi_array<std::complex<float>, 2> & getIlluminationNumerator();
+
+  boost::multi_array<std::complex<float>, 2> & getIlluminationDenominator();
+
+  // tmp containers
+
+  boost::multi_array<std::complex<float>, 3> & getPrbObj();
+  boost::multi_array<std::complex<float>, 3> & getTmp2();
   
  public:
 
@@ -137,7 +154,7 @@ class CudaEngineDM: public CudaEngine
 
  public:
 
-  // recon_ptycho parameters
+  // input recon_ptycho parameters
 
   int m_start_update_probe;  // iteration number start updating probe, 2
   int m_start_update_object; // iteration number start updating object, 0
@@ -155,17 +172,37 @@ class CudaEngineDM: public CudaEngine
 
   boost::multi_array<cusp::complex<float>, 2> m_init_probe;
   boost::multi_array<cusp::complex<float>, 2> m_init_object;
-  boost::multi_array<std::complex<float>, 1> m_host_corners;
-  boost::multi_array<std::complex<float>, 2> m_host_image_scale;
-  boost::multi_array<std::complex<float>, 2> m_host_illuminated_area;
 
-  boost::multi_array<int, 1> m_host_overlaping_frames;
-  boost::multi_array<int, 1> m_host_overlaping_frames_index;  
+ public:
 
   // output
 
   float m_obj_error;
-  float m_prb_error;
+  float m_prb_error; 
+
+ public:
+
+  // scan points
+  
+  boost::multi_array<std::complex<float>, 1> m_host_corners;
+
+  // containers used in cal_object_trans
+
+  boost::multi_array<int, 1> m_host_overlaping_frames;
+  boost::multi_array<int, 1> m_host_overlaping_frames_index;  
+
+  boost::multi_array<std::complex<float>, 2> m_host_image_scale;
+  boost::multi_array<std::complex<float>, 2> m_host_illuminated_area;
+
+  // containers used in cal_probe_trans
+
+  boost::multi_array<std::complex<float>, 2> m_host_illumination_numerator;
+  boost::multi_array<std::complex<float>, 2> m_host_illumination_denominator;
+
+  // tmp containers
+
+  boost::multi_array<std::complex<float>, 3> m_host_prb_obj;
+  boost::multi_array<std::complex<float>, 3> m_host_tmp2;
 
  protected:
 
@@ -187,6 +224,9 @@ class CudaEngineDM: public CudaEngine
     thrust::device_vector<cusp::complex<float> > m_prb_obj_part;
     thrust::device_vector<cusp::complex<float> > m_tmp_part;
     thrust::device_vector<cusp::complex<float> > m_tmp2_part;
+
+    thrust::device_vector<cusp::complex<float> > m_illumination_numerator;
+    thrust::device_vector<cusp::complex<float> > m_illumination_denominator;
 
 };
 

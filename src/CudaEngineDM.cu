@@ -53,7 +53,7 @@ struct SetMinAmp : public thrust::unary_function<T, T>
 
   __host__ __device__
   T operator()(T x){
-    float abs_x = cusp::abs(x);
+    float abs_x = cusp::abs(x) + 1.e-8;
     if(abs_x < amp_min) return x*amp_min/abs_x;
     return x;
   }
@@ -164,7 +164,7 @@ CudaEngineDM::CudaEngineDM()
    m_start_update_object = 0;
    m_start_update_probe  = 2;
 
-   m_alpha = 1.e-8; // espresso threshold coefficient
+   m_alpha = 1.e-8; // regularization used by claculateImageScale in InvSigmaRecon
    m_beta  = 0.9;   // general feedback parameter
 
    m_amp_max =  1.0;
@@ -172,7 +172,7 @@ CudaEngineDM::CudaEngineDM()
    m_pha_max =  3.14/2;
    m_pha_min = -3.14/2;
 
-   m_sigma1 = 1.e-10;
+   m_sigma1 = 1.e-10; // regularization used by dataProjector in DataProjRecon
    m_sigma2 = 5.e-5;
 
    // Recon output parameters
@@ -254,6 +254,26 @@ void CudaEngineDM::setInitObject(const boost::multi_array<std::complex<float>, 2
 
 // Recon Output API
 
+boost::multi_array<std::complex<float>, 2> & CudaEngineDM::getObject(){
+        // update and return ThrustEngine::m_host_image
+	return ThrustEngine::getImage();
+}
+
+boost::multi_array<std::complex<float>, 2> & CudaEngineDM::getProbe(){
+        // update and return ThrustEngine::m_host_illumination
+	return ThrustEngine::getIllumination();
+}
+
+float CudaEngineDM::getObjectError() const {
+     return m_obj_error;
+}
+
+float CudaEngineDM::getProbeError() const {
+     return m_prb_error;
+}
+
+// access to the SHARP internal containers
+
 boost::multi_array<std::complex<float>, 3> & CudaEngineDM::getFrames(){
   return ThrustEngine::getFrames();
 }
@@ -264,6 +284,8 @@ boost::multi_array<std::complex<float>, 1> & CudaEngineDM::getFramesCorners(){
 	       (cusp::complex<float> *)m_host_corners.data());  
   return m_host_corners;
 }
+
+// used in cal_object_trans
 
 boost::multi_array< int , 1> & CudaEngineDM::getOverlapingFrames(){
   m_host_overlaping_frames.resize(boost::extents[m_overlaping_frames.size()]);
@@ -279,14 +301,12 @@ boost::multi_array< int , 1> & CudaEngineDM::getOverlapingFramesIndex(){
   return m_host_overlaping_frames_index;
 }
 
-boost::multi_array<std::complex<float>, 2> & CudaEngineDM::getObject(){
-        // update and return ThrustEngine::m_host_image
-	return ThrustEngine::getImage();
-}
 
-boost::multi_array<std::complex<float>, 2> & CudaEngineDM::getProbe(){
-        // update and return ThrustEngine::m_host_illumination
-	return ThrustEngine::getIllumination();
+boost::multi_array<std::complex<float>, 2> & CudaEngineDM::getIlluminatedArea(){
+  m_host_illuminated_area.resize(boost::extents[m_image_height][m_image_width]);
+  thrust::copy(m_illuminated_area.begin(), m_illuminated_area.end(),
+	       (cusp::complex<float> *) m_host_illuminated_area.data());  
+  return m_host_illuminated_area;
 }
 
 boost::multi_array<std::complex<float>, 2> & CudaEngineDM::getImageScale(){
@@ -296,20 +316,36 @@ boost::multi_array<std::complex<float>, 2> & CudaEngineDM::getImageScale(){
   return m_host_image_scale;
 }
 
-boost::multi_array<std::complex<float>, 2> & CudaEngineDM::getIlluminatedArea(){
-  m_host_illuminated_area.resize(boost::extents[m_image_height][m_image_width]);
-  thrust::copy(m_illuminated_area.begin(), m_illuminated_area.end(),
-	       (cusp::complex<float> *) m_host_illuminated_area.data());  
-  return m_host_illuminated_area;
+// used in cal_probe_trans
+
+boost::multi_array<std::complex<float>, 2> & CudaEngineDM::getIlluminationNumerator(){
+  m_host_illumination_numerator.resize(boost::extents[m_frame_height][m_frame_width]);
+  thrust::copy(m_illumination_numerator.begin(), m_illumination_numerator.end(),
+	       (cusp::complex<float> *) m_host_illumination_numerator.data());  
+  return m_host_illumination_numerator;
 }
 
-float CudaEngineDM::getObjectError() const {
-     return m_obj_error;
+boost::multi_array<std::complex<float>, 2> & CudaEngineDM::getIlluminationDenominator(){
+  m_host_illumination_denominator.resize(boost::extents[m_frame_height][m_frame_width]);
+  thrust::copy(m_illumination_denominator.begin(), m_illumination_denominator.end(),
+	       (cusp::complex<float> *) m_host_illumination_denominator.data());  
+  return m_host_illumination_denominator;
 }
 
-float CudaEngineDM::getProbeError() const {
-     return m_prb_error;
+// tmp containers
+
+boost::multi_array<std::complex<float>, 3> & CudaEngineDM::getPrbObj(){
+  thrust::copy(m_prb_obj_part.begin(), m_prb_obj_part.end(),
+	       (cusp::complex<float> *)m_host_prb_obj.data());  
+  return m_host_prb_obj;
 }
+
+boost::multi_array<std::complex<float>, 3> & CudaEngineDM::getTmp2(){
+  thrust::copy(m_tmp2_part.begin(), m_tmp2_part.end(),
+	       (cusp::complex<float> *)m_host_tmp2.data());  
+  return m_host_tmp2;
+}
+
 
 // recon: recon_ptycho
 
@@ -334,16 +370,19 @@ void CudaEngineDM::init(){
 
   // std::cout << "image, shape(0): "  << m_image.shape(0) << ", shape(1)" << m_image.shape(1) << std::endl;
   std::cout << "image, (w: "  << m_image_width << ", h:" << m_image_height << ")" << std::endl; 
-  std::cout << "frames: " << m_frames.size() << std::endl;
+  std::cout << "size of frames: " << m_frames.size() << ", number of chunks: " << m_nparts << std::endl;
 
   m_image_old.resize(m_image.size()); 
   m_prb_old.resize(m_illumination.size());
+
+  m_illumination_numerator.resize(m_illumination.size());
+  m_illumination_denominator.resize(m_illumination.size());
   
   // m_prb_tmp.resize(m_illumination.size());
 
   size_t free,total;
   cudaMemGetInfo(&free,&total);
-  sharp_log("CudaEngineDM::step (1), GPU Memory: %zu bytes free %zu bytes total.",free,total);
+  sharp_log("CudaEngineDM::step (1) after the SHARP initialization, GPU Memory: %zu bytes free %zu bytes total.",free,total);
 
   // from CudaEngine::initialize
 
@@ -364,15 +403,19 @@ void CudaEngineDM::init(){
   int part = m_frames.size()/m_nparts;
 
   m_prb_obj_part.resize(part);
+  m_host_prb_obj.resize(boost::extents[batch][m_frame_height][m_frame_width]);
+  
   m_tmp_part.resize(part);
+  
   m_tmp2_part.resize(part);
+  m_host_tmp2.resize(boost::extents[batch][m_frame_height][m_frame_width]);
 
-  std::cout << "part: " << part <<
-  	    ", frames: " << batch <<
-	    ", frames corners: " << m_frames_corners.size() << std::endl;
+  // std::cout << "part: " << part <<
+  //	    ", frames: " << batch <<
+  //	    ", frames corners: " << m_frames_corners.size() << std::endl;
 
   cudaMemGetInfo(&free,&total);
-  sharp_log("CudaEngineDM::step (2), GPU Memory: %zu bytes free %zu bytes total.",free,total);
+  sharp_log("CudaEngineDM::step (2) after addining the chunk-based containers, GPU Memory: %zu bytes free %zu bytes total.",free,total);
 
   m_iteration = 0;
 }
@@ -389,10 +432,10 @@ int CudaEngineDM::step(){
     // Make sure to do a global synchronization in the last iteration
     bool do_sync = true; // ((m_iteration % m_global_period) == 0 ||  i == steps-1);
 
-    // m_image -> m_image_old
+    // m_image -> m_image_old (used only for errors)
     thrust::copy(m_image.begin(), m_image.end(), m_image_old.data());
     
-    // m_illumination -> m_prb_old
+    // m_illumination -> m_prb_old (used only for errors)
     thrust::copy(m_illumination.begin(), m_illumination.end(), m_prb_old.data());
 
     recon_dm_trans_single();
@@ -458,6 +501,7 @@ void CudaEngineDM::calcOverlapProjection(
     int pFrames = m_nframes/m_nparts;
     int iFrame = iPart*pFrames;
 
+    // image*illumination
     image_split(output_frames.data(),
     		input_image.data(), 
                   thrust::raw_pointer_cast(m_frames_corners.data()) + iFrame, // add iFrame
@@ -525,6 +569,10 @@ void CudaEngineDM::recon_dm_trans_single(){
     thrust::device_vector<cusp::complex<float> >::iterator frames_it2;
   
     for (int i=0; i < m_nparts; i++){
+
+        cusp::blas::detail::scal(m_prb_obj_part.begin(), m_prb_obj_part.end(), 0.0f);
+	cusp::blas::detail::scal(m_tmp_part.begin(), m_tmp_part.end(), 0.0f);
+	cusp::blas::detail::scal(m_tmp2_part.begin(), m_tmp2_part.end(), 0.0f);
 
     	frames_it1 = frames_it0 + i*part;
    	frames_it2 = frames_it1 + part;
@@ -611,71 +659,19 @@ void CudaEngineDM::set_object_constraints(){
 
 }
 
-/*
-void CudaEngineDM::cal_probe_trans(const DeviceRange<cusp::complex<float> > & frames_data, 
-     const DeviceRange<cusp::complex<float> > & frames_object,
-     const DeviceRange<cusp::complex<float> > & frames_numerator,
-     const DeviceRange<cusp::complex<float> > & frames_denominator,
-     const DeviceRange<cusp::complex<float> > & prb_tmp) {
-
-  bool newMethod = false;
-
-  if(newMethod) {
-    updateIllumination(m_image, frames_data);
-  } else {
-
-    imageSplit(m_image, frames_object);                          // add interval
-
-    {
-      // frames_numerator = frames_data *conj(frames_object)
-      conjugateMultiply(frames_data, frames_object, frames_numerator);
-
-      // frames_denominator = frames_object *= conj(frames_object)
-      conjugateMultiply(frames_object, frames_object, frames_denominator);
-    }
-
-    thrust::device_vector<cusp::complex<float> > illumination_numerator(m_illumination.size());
-    shiftedSum(frames_numerator, illumination_numerator);
-
-    thrust::device_vector<cusp::complex<float> > illumination_denominator(m_illumination.size());
-    shiftedSum(frames_denominator, illumination_denominator);
-
-    cusp::complex<float> regularization = thrust::reduce(illumination_denominator.begin(),
-							 illumination_denominator.end(),
-							 cusp::complex<float> (0,0),
-							 cusp::blas::detail::maximum<cusp::complex<float> >());
-    regularization = 1e-4f*regularization;
-    // std::cout << "regulization: " << regularization << std::endl;
-
-    m_comm->allSum(illumination_numerator);
-    m_comm->allSum(illumination_denominator);
-
-    // ptycho
-
-
-
-    // 
-
-    thrust::transform(illumination_numerator.begin(),
-		      illumination_numerator.end(),
-		      illumination_denominator.begin(),
-		      m_illumination.begin(),
-		      DivideWithRegularization<cusp::complex<float> >(regularization));
-  }
-
-  calculateImageScale();
-
-}
-
-*/
-
 void CudaEngineDM::cal_probe_trans(
      const DeviceRange<cusp::complex<float> > & frames_object,      // m_prb_obj
      const DeviceRange<cusp::complex<float> > & frames_numerator,
      const DeviceRange<cusp::complex<float> > & frames_denominator) {
 
     thrust::device_vector<cusp::complex<float> > illumination_numerator(m_illumination.size());
+    cusp::blas::detail::scal(illumination_numerator.begin(), illumination_numerator.end(), 0.0f);
+    
     thrust::device_vector<cusp::complex<float> > illumination_denominator(m_illumination.size());
+    cusp::blas::detail::scal(illumination_denominator.begin(), illumination_denominator.end(), 0.0f);
+
+    thrust::device_vector<cusp::complex<float> > illumination_numerator_part(m_illumination.size());
+    thrust::device_vector<cusp::complex<float> > illumination_denominator_part(m_illumination.size());
 
     thrust::device_vector<cusp::complex<float> >::iterator frames_it0 = m_frames_iterate.begin();
     thrust::device_vector<cusp::complex<float> >::iterator frames_it1;
@@ -683,12 +679,14 @@ void CudaEngineDM::cal_probe_trans(
 
     int part = m_frames.size()/m_nparts;
     int pFrames = m_nframes/m_nparts;
+    int frame_size = m_illumination.size();
   
     for (int i=0; i < m_nparts; i++){
 
-      thrust::device_vector<cusp::complex<float> > illumination_numerator_part(m_illumination.size());
-      thrust::device_vector<cusp::complex<float> > illumination_denominator_part(m_illumination.size());
-
+      cusp::blas::detail::scal(m_prb_obj_part.begin(), m_prb_obj_part.end(), 0.0f);
+      cusp::blas::detail::scal(m_tmp_part.begin(), m_tmp_part.end(), 0.0f);
+      cusp::blas::detail::scal(m_tmp2_part.begin(), m_tmp2_part.end(), 0.0f);
+ 
       frames_it1 = frames_it0 + i*part;
       frames_it2 = frames_it1 + part;
 
@@ -719,7 +717,53 @@ void CudaEngineDM::cal_probe_trans(
 			frames_denominator.begin(),
 		        ConjugateMultiply<cusp::complex<float> >());
 
- 
+       // sum frames
+
+       cusp::blas::detail::scal(illumination_numerator_part.begin(), illumination_numerator_part.end(), 0.0f);
+       cusp::blas::detail::scal(illumination_denominator_part.begin(), illumination_denominator_part.end(), 0.0f);    
+
+       thrust::device_vector<cusp::complex<float> >::iterator frames_numerator_it0 = frames_numerator.begin();
+       thrust::device_vector<cusp::complex<float> >::iterator frames_numerator_it1;
+       thrust::device_vector<cusp::complex<float> >::iterator frames_numerator_it2;
+
+       thrust::device_vector<cusp::complex<float> >::iterator frames_denominator_it0 = frames_denominator.begin();
+       thrust::device_vector<cusp::complex<float> >::iterator frames_denominator_it1;
+       thrust::device_vector<cusp::complex<float> >::iterator frames_denominator_it2;
+
+       boost::multi_array<std::complex<float>, 2> host_illumination_denominator_part;
+       host_illumination_denominator_part.resize(boost::extents[m_frame_height][m_frame_width]);
+
+       for (int j = 0; j < pFrames; j++){
+
+          // thrust::copy(illumination_denominator_part.begin(), illumination_denominator_part.end(),
+	  //    (cusp::complex<float> *) host_illumination_denominator_part.data());
+	  // std::cout << j << ", before: " << host_illumination_denominator_part[0][0] << std::endl;
+
+          frames_numerator_it1 = frames_numerator_it0 + j*frame_size;
+          frames_numerator_it2 = frames_numerator_it1 + frame_size;
+
+          frames_denominator_it1 = frames_denominator_it0 + j*frame_size;
+          frames_denominator_it2 = frames_denominator_it1 + frame_size;
+
+       	  thrust::transform(frames_numerator_it1,
+			    frames_numerator_it2,
+		            illumination_numerator_part.begin(),                
+		            illumination_numerator_part.begin(),
+		            thrust::plus<cusp::complex<float> >());
+
+          thrust::transform(frames_denominator_it1,
+			    frames_denominator_it2,
+		            illumination_denominator_part.begin(),                
+		            illumination_denominator_part.begin(),
+		            thrust::plus<cusp::complex<float> >());
+
+         // thrust::copy(illumination_denominator_part.begin(), illumination_denominator_part.end(),
+	 //      (cusp::complex<float> *) host_illumination_denominator_part.data());
+	 //  std::cout << j << ", after: " << host_illumination_denominator_part[0][0] << std::endl;
+
+      }
+
+ /*
       // shiftedSum(frames_numerator, illumination_numerator);
       shifted_sum(frames_numerator.data(),
 		  thrust::raw_pointer_cast(illumination_numerator_part.data()),
@@ -734,6 +778,8 @@ void CudaEngineDM::cal_probe_trans(
 	          thrust::raw_pointer_cast(m_frames_corners.data()) + iFrame, // add iFrame
  	          m_frame_width, m_frame_height,
 		  pFrames);  // replace m_nframes with pFrames
+
+*/
 
       // sum chunks
 
@@ -751,10 +797,6 @@ void CudaEngineDM::cal_probe_trans(
 
     }
 
-    float f = 1./m_nparts;
-    cusp::blas::scal(illumination_numerator, f);
-    cusp::blas::scal(illumination_denominator, f);
-
     cusp::complex<float> regularization = thrust::reduce(illumination_denominator.begin(),
 							 illumination_denominator.end(),
 							 cusp::complex<float> (0,0),
@@ -766,7 +808,10 @@ void CudaEngineDM::cal_probe_trans(
     m_comm->allSum(illumination_numerator);
     m_comm->allSum(illumination_denominator);
 
-    // 
+    thrust::copy(illumination_numerator.begin(), illumination_numerator.end(), m_illumination_numerator.data());
+    thrust::copy(illumination_denominator.begin(), illumination_denominator.end(), m_illumination_denominator.data());
+
+    // update illumination
 
     thrust::transform(illumination_numerator.begin(),
 		      illumination_numerator.end(),
@@ -855,8 +900,6 @@ double CudaEngineDM::cal_sol_error(){
 }
 
 void CudaEngineDM::calculateImageScale(){
-
-  std::cout << "CudaEngineDM::calculateImageScale()" << std::endl;
 
   // CudaEngine::calculateImageScale();
 

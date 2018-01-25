@@ -110,7 +110,15 @@ class PySharpNSLS2 : public SharpNSLS2 {
 
     PyObject* getOverlapingFrames();
 
-    PyObject* getOverlapingFramesIndex();   
+    PyObject* getOverlapingFramesIndex();
+
+    PyObject* getIlluminationNumerator();
+
+    PyObject* getIlluminationDenominator();
+
+    PyObject* getPrbObj();
+
+    PyObject* getTmp2();    
 
  public:
 
@@ -138,12 +146,21 @@ class PySharpNSLS2 : public SharpNSLS2 {
   boost::multi_array<std::complex<float>, 2> m_image;
   boost::multi_array<std::complex<float>, 2> m_object;
   boost::multi_array<std::complex<float>, 2> m_probe;
-  boost::multi_array<std::complex<float>, 3> m_products; 
+
   boost::multi_array<std::complex<float>, 1> m_corners;
-  boost::multi_array<std::complex<float>, 2> m_imageScale;
-  boost::multi_array<std::complex<float>, 2> m_illuminatedArea;
+  boost::multi_array<std::complex<float>, 3> m_products;
+
   boost::multi_array<int, 1> m_overlaping_frames;
   boost::multi_array<int, 1> m_overlaping_frames_index;
+  boost::multi_array<std::complex<float>, 2> m_imageScale;
+  boost::multi_array<std::complex<float>, 2> m_illuminatedArea;
+
+  boost::multi_array<std::complex<float>, 2> m_illuminationNumerator;
+  boost::multi_array<std::complex<float>, 2> m_illuminationDenominator;
+
+  boost::multi_array<std::complex<float>, 3> m_prb_obj;
+  boost::multi_array<std::complex<float>, 3> m_tmp2; 
+  
   
 };
 
