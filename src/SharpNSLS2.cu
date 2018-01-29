@@ -354,11 +354,10 @@ int SharpNSLS2::initSolver(){
   m_engine->setAllTranslations(HostRange<double>(allTranslations()));
 
   // initial probe
-  // m_engine->setIllumination(HostRange<cusp::complex<float> >(m_input_output->illumination()));
   
   if(m_has_init_probe){
     // convert from std to cusp and m_engine->setIllumination
-    sharp_log("Setting initial probe");
+    // sharp_log("Setting initial probe");
     m_engine->setInitProbe(m_init_probe);
   } else {
     sharp_error("Initial probe is not defined");
@@ -369,15 +368,10 @@ int SharpNSLS2::initSolver(){
   m_engine->setIlluminationIntensities(illumination_intensities());
 
   // initial object
-  
-  // if(m_input_output->has_initial_image){
-  //   sharp_log("Setting initial image in solver");
-  //  m_engine->setImage(HostRange<cusp::complex<float> >(m_input_output->initial_image()));
-  // }
 
   if(m_has_init_object){
     // convert from std to cusp and m_engine->setImage
-    sharp_log("Setting initial object");
+    // sharp_log("Setting initial object");
     m_engine->setInitObject(m_init_object);
   } else {
     sharp_error("Initial object is not defined");
