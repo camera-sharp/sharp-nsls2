@@ -19,11 +19,6 @@
 
 using namespace camera_sharp;
 
-// 
-
-void CudaEngineDM::setChunks(int v){
-     m_nparts = v;
-}
 
 //
 
@@ -112,9 +107,28 @@ struct Norm : public thrust::unary_function<T, float>{
   }
 };
 
-/*!
- * @brief return real value
- */
+template <typename T>
+struct Real : public thrust::unary_function<T, float>{
+  __host__ __device__ 
+  float operator()(T x){
+    return x.real();
+  }
+};
+
+template <typename T1,typename T2>
+struct NormDiffRecon : public thrust::binary_function<T1,T2,T1>
+{
+
+  NormDiffRecon() {}
+
+  __host__ __device__
+  T1 operator()(T1 x, T2 y){
+      T1 val = cusp::abs(x) - sqrtf(y);
+      return val*val;
+  }
+};
+
+
 template <typename T1,typename T2>
 struct DataProjRecon : public thrust::binary_function<T1,T2,T1>
 {
@@ -187,20 +201,20 @@ CudaEngineDM::CudaEngineDM()
 
 // Recon Input API
 
-void CudaEngineDM::setAlpha(float v){
-     m_alpha = v;
-}
-
-void CudaEngineDM::setBeta(float v){
-     m_beta = v;
-}
-
 void CudaEngineDM::setStartUpdateProbe(int v){
      m_start_update_probe = v;
 }
 
 void CudaEngineDM::setStartUpdateObject(int v){
      m_start_update_object = v;
+}
+
+void CudaEngineDM::setAlpha(float v){
+     m_alpha = v;
+}
+
+void CudaEngineDM::setBeta(float v){
+     m_beta = v;
 }
 
 void CudaEngineDM::setAmpMax(float v){
@@ -219,6 +233,14 @@ void CudaEngineDM::setPhaMax(float v){
 void CudaEngineDM::setPhaMin(float v){
      m_pha_min = v;
 }
+
+// SHARP-NSLS2 Input API
+
+void CudaEngineDM::setChunks(int v){
+     m_nparts = v;
+}
+
+// SHARP-based API
 
 void CudaEngineDM::setInitProbe(const boost::multi_array<std::complex<float>, 2> & probe){
 
@@ -271,6 +293,11 @@ float CudaEngineDM::getObjectError() const {
 float CudaEngineDM::getProbeError() const {
      return m_prb_error;
 }
+
+float CudaEngineDM::getChiError() const {
+     return m_chi_error;
+}
+
 
 // access to the SHARP internal containers
 
@@ -335,12 +362,16 @@ boost::multi_array<std::complex<float>, 2> & CudaEngineDM::getIlluminationDenomi
 // tmp containers
 
 boost::multi_array<std::complex<float>, 3> & CudaEngineDM::getPrbObj(){
+  int batch = m_nframes/m_nparts;
+  m_host_prb_obj.resize(boost::extents[batch][m_frame_height][m_frame_width]);
   thrust::copy(m_prb_obj_part.begin(), m_prb_obj_part.end(),
 	       (cusp::complex<float> *)m_host_prb_obj.data());  
   return m_host_prb_obj;
 }
 
 boost::multi_array<std::complex<float>, 3> & CudaEngineDM::getTmp2(){
+  int batch = m_nframes/m_nparts;
+  m_host_tmp2.resize(boost::extents[batch][m_frame_height][m_frame_width]);
   thrust::copy(m_tmp2_part.begin(), m_tmp2_part.end(),
 	       (cusp::complex<float> *)m_host_tmp2.data());  
   return m_host_tmp2;
@@ -351,15 +382,13 @@ boost::multi_array<std::complex<float>, 3> & CudaEngineDM::getTmp2(){
 
 void CudaEngineDM::iterate(int steps){
 
-  clock_t start_timer = clock(); //Start 
-
+  // clock_t start_timer = clock(); 
   for(int i = 0; i < steps; i++) {
    	  step();
        	  // double diff =  (clock() - start_timer)/(double) CLOCKS_PER_SEC; 
        	  // std::cout << i << ", time: " << diff << std::endl;
        	  // start_timer = clock();
     }
-
 }
 
 void CudaEngineDM::init(){
@@ -403,12 +432,8 @@ void CudaEngineDM::init(){
   int part = m_frames.size()/m_nparts;
 
   m_prb_obj_part.resize(part);
-  m_host_prb_obj.resize(boost::extents[batch][m_frame_height][m_frame_width]);
-  
-  m_tmp_part.resize(part);
-  
+  m_tmp_part.resize(part);  
   m_tmp2_part.resize(part);
-  m_host_tmp2.resize(boost::extents[batch][m_frame_height][m_frame_width]);
 
   // std::cout << "part: " << part <<
   //	    ", frames: " << batch <<
@@ -424,11 +449,6 @@ void CudaEngineDM::init(){
 
 int CudaEngineDM::step(){
 
-    // double sol_err = cal_sol_error();
-    // std::cout << "sol_chi: " << sol_err << std::endl;
-
-    // bool calculate_residual = (m_iteration % m_output_period == 0);
-
     // Make sure to do a global synchronization in the last iteration
     bool do_sync = true; // ((m_iteration % m_global_period) == 0 ||  i == steps-1);
 
@@ -442,49 +462,28 @@ int CudaEngineDM::step(){
 
     if(m_iteration >= m_start_update_probe) {
        if(m_iteration >= m_start_update_object) {
-
           cal_object_trans(m_frames_iterate, do_sync);
-	  set_object_constraints();
-	  
+	  set_object_constraints();	  
           cal_probe_trans(m_prb_obj_part, m_tmp_part, m_tmp2_part);
 
       } else {
-
           cal_probe_trans(m_prb_obj_part, m_tmp_part, m_tmp2_part);
-
       }
     } else {
       if(m_iteration >= m_start_update_object){
-
           cal_object_trans(m_frames_iterate, do_sync);
 	  set_object_constraints();
-
       }
     }
 
-   // calculate resudual
+    // calculate resudual
 
-   cal_obj_error(m_image_old);
-   cal_prb_error(m_prb_old);
-
-/*
-    if(calculate_residual){
-
-	double obj_err = cal_obj_error(m_image_old);
-	double prb_err = cal_prb_error(m_prb_old);
-	double chi_err = cal_chi_error(m_image, m_tmp);
- 
-	std::cout << m_iteration 
-	          << ", object_chi: " << obj_err 
-		  << ", probe_chi: " << prb_err
-		  << std::endl;
-    }
-
-*/
-
-
+    cal_obj_error(m_image_old);
+    cal_prb_error(m_prb_old);
+    cal_chi_error();
 
     m_iteration++;
+    
     return m_iteration;
 }
 
@@ -525,23 +524,6 @@ void CudaEngineDM::dataProjector(const DeviceRange<cusp::complex<float> > & inpu
   cusp::blas::detail::scal(output_frames.begin(), output_frames.end(), 
 			   1.0f/sqrtf(m_frame_width*m_frame_height));
 
-/* New extension
-
-  int pFrames = m_nframes/m_nparts;
-  thrust::device_vector<float >::iterator diff_it0 = frames_it1;
-  thrust::device_vector< cusp::complex<float> >::iterator tmp_fft_it0 = output_frames.begin();
-
-           index_x, index_y = np.where(diff >= 0.)
-            dev = amp_tmp - diff
-            power = np.sum((dev[index_x, index_y]) ** 2) / (self.nx_prb * self.ny_prb)
-
-   for (int i=0; i < pFrames; i++){
-    	frame_it1 = frame_it0 + i*m_frame_size;
-   	frames_it2 = frames_it1 + part;
-   }
-
-*/
-
   // Apply modulus projection
   
    thrust::transform(output_frames.begin(), output_frames.end() ,
@@ -562,7 +544,6 @@ void CudaEngineDM::dataProjector(const DeviceRange<cusp::complex<float> > & inpu
 void CudaEngineDM::recon_dm_trans_single(){
 
     int part = m_frames.size()/m_nparts;
-
 
     thrust::device_vector<cusp::complex<float> >::iterator frames_it0 = m_frames_iterate.begin();
     thrust::device_vector<cusp::complex<float> >::iterator frames_it1;
@@ -863,40 +844,80 @@ void CudaEngineDM::cal_prb_error(const DeviceRange<cusp::complex<float> > & prb_
    return;
 }
 
-double CudaEngineDM::cal_chi_error(const DeviceRange<cusp::complex<float> > & image,
-       const DeviceRange<cusp::complex<float> > & tmp){
+void CudaEngineDM::cal_chi_error(){
 
-   // chi_tmp = 0.
-   // for i, (x_start, x_end, y_start, y_end) in enumerate(self.point_info):
-   //      tmp = np.abs(fftn(self.prb*self.obj[x_start:x_end, y_start:y_end])/np.sqrt(1.*self.nx_prb*self.ny_prb))
-   //      chi_tmp = chi_tmp + np.sum((tmp - self.diff_array[i])**2)/(np.sum((self.diff_array[i])**2))
-   // self.error_chi[it] = np.sqrt(chi_tmp/self.num_points)
+    int frame_size = m_illumination.size();
+    int pFrames = m_nframes/m_nparts; // frames/chunck
+    int part = m_frames.size()/m_nparts; // (frames/chunck)*frame_size
 
-   imageSplitIlluminate(image.data(), tmp.data());  
-   fftFrames(tmp.data(), tmp.data(), FFT_FORWARD);
-   cusp::blas::detail::scal(tmp.begin(), tmp.end(), 1.0f/sqrtf(m_frame_width*m_frame_height));
+    thrust::device_vector<float >::iterator frames_it0 = m_frames.begin();
 
-   double err = sqrt(thrust::transform_reduce(zip2(tmp, m_frames),
-				AbsSubtract2<thrust::tuple<cusp::complex<float>,float> >(), 
-				float(0),
-				thrust::plus<float>()))/m_frames_norm;
+    double chi_error  = 0.0;
+  
+    for (int i=0; i < m_nparts; i++){
 
-   return err;
-}
+        // clean tmp chunk-based containers
 
-double CudaEngineDM::cal_sol_error(){
+        cusp::blas::detail::scal(m_prb_obj_part.begin(), m_prb_obj_part.end(), 0.0f);
+	cusp::blas::detail::scal(m_tmp_part.begin(), m_tmp_part.end(), 0.0f);
+	cusp::blas::detail::scal(m_tmp2_part.begin(), m_tmp2_part.end(), 0.0f);
 
-   double diff_error = sqrt(thrust::transform_reduce(zip2(m_image, m_solution),
-		AbsDiff2<thrust::tuple<cusp::complex<float>, cusp::complex<float> > >(), 
-		float(0),
-		thrust::plus<float>()));
+        // define iterators
+	
+	thrust::device_vector<float >::iterator frames_part_it0 = frames_it0 + i*part;
+	thrust::device_vector<cusp::complex<float> >::iterator tmp2_it0 = m_tmp2_part.begin();
 
-   double norm = sqrt(thrust::transform_reduce(m_solution.begin(), m_solution.end(),
-		Norm< cusp::complex<float> >(), 
-		float(0),
-		thrust::plus<float>()));
+        // Calculate the overlap projection: 
+        // recon: prb_obj = self.prb * self.obj[x_start:x_end, y_start:y_end]
+    
+	calcOverlapProjection(m_image, m_prb_obj_part, i);  // add i
 
-   return diff_error/norm;
+	// propagate to detectors
+
+	fftFrames(m_prb_obj_part.data().get(),  m_tmp_part.data().get(), FFT_FORWARD);
+
+  	cusp::blas::detail::scal(m_tmp_part.begin(), m_tmp_part.end(), 
+			   	1.0f/sqrtf(m_frame_width*m_frame_height));
+
+        // (tmp - self.diff_array[i])**2
+	
+  	thrust::transform(m_tmp_part.begin(), m_tmp_part.end() ,
+                          frames_part_it0,          
+		          m_tmp2_part.begin(),
+		          NormDiffRecon<cusp::complex<float>, float >());
+  
+       double chi_part_error = 0.0;     
+
+       for(int j = 0; j < pFrames; j++){
+
+           // np.sum((tmp - self.diff_array[i])**2)
+
+           thrust::device_vector<cusp::complex<float> >::iterator tmp2_it1 = tmp2_it0 + j*frame_size;
+	   thrust::device_vector<cusp::complex<float> >::iterator tmp2_it2 = tmp2_it1 + frame_size;
+
+       	   double chi_frame_error = thrust::transform_reduce(tmp2_it1, tmp2_it2,
+	                                                     Real < cusp::complex<float> >(), 
+						             float(0),
+					                     thrust::plus<float>());
+
+           // np.sum((self.diff_array[i])**2)
+
+           thrust::device_vector<float >::iterator frames_part_it1 = frames_part_it0 + j*frame_size;
+	   thrust::device_vector<float >::iterator frames_part_it2 = frames_part_it1 + frame_size;
+
+           double frame_norm = thrust::reduce(frames_part_it1, frames_part_it2, float(0), thrust::plus<float>());
+
+           chi_part_error += chi_frame_error/frame_norm;
+
+       }
+
+       chi_error += chi_part_error;	
+
+    }
+
+    m_chi_error = sqrt(chi_error/m_nframes);
+
+    return;
 }
 
 void CudaEngineDM::calculateImageScale(){

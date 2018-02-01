@@ -33,10 +33,10 @@ class CudaEngineDM: public CudaEngine
 
    // Recon Input API
 
-  /** general feedback parameter */
+  /** optimization rate parameter in z(i+1) = z(i) + beta*d */
   void setBeta(float v);
 
-  /** espresso threshold coefficient */
+  /** regularization coefficient in 1/(probe**2 + alpha) */
   void setAlpha(float v);
 
   /** iteration number start updating probe */
@@ -74,6 +74,8 @@ class CudaEngineDM: public CudaEngine
   float getObjectError() const;
 
   float getProbeError() const;
+
+  float getChiError() const; 
 
  public:
 
@@ -129,8 +131,7 @@ class CudaEngineDM: public CudaEngine
 
   void cal_prb_error(const DeviceRange<cusp::complex<float> > & prb_old);
 
-  double cal_chi_error(const DeviceRange<cusp::complex<float> > & input_image, 
-		       const DeviceRange<cusp::complex<float> > & tmp_frames);
+  void cal_chi_error();
 
  protected:
 
@@ -145,12 +146,6 @@ class CudaEngineDM: public CudaEngine
 			     int ipart);
 
   void calculateImageScale();
-
- protected:
-
-  // debugging 
-
-  double cal_sol_error();
 
  public:
 
@@ -178,7 +173,8 @@ class CudaEngineDM: public CudaEngine
   // output
 
   float m_obj_error;
-  float m_prb_error; 
+  float m_prb_error;
+  float m_chi_error;
 
  public:
 

@@ -177,6 +177,11 @@ float SharpNSLS2::getProbeError(){
   return m_engine->getProbeError();
 }
 
+float SharpNSLS2::getChiError(){
+  return m_engine->getChiError();
+}
+
+
 // SHARP internal containers
 
 boost::multi_array<std::complex<float>, 3> & SharpNSLS2::getFrames(){
@@ -315,8 +320,6 @@ int SharpNSLS2::initSolver(){
   int res = -1;
   int argc = 0;
   char* argv[] = {};
-
-  std::cout << "SharpNSLS2::initSolver()" << std::endl;
 
   m_engine = new CudaEngineDM();
 
@@ -478,7 +481,7 @@ void  SharpNSLS2::calculateReciprocalSize(){
     m_center[0] = m_frames_width/2.0;
     m_center[1] = m_frames_height/2.0;
 
-    std::cout << "calculate reciprocal size: " <<  m_reciprocal_size[0] << ", " << m_reciprocal_size[1] << std::endl;
+    // std::cout << "calculate reciprocal size: " <<  m_reciprocal_size[0] << ", " << m_reciprocal_size[1] << std::endl;
 }
 
 boost::multi_array<std::complex<float>, 2> & SharpNSLS2::illumination_mask(){ 

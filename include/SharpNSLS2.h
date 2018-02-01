@@ -94,6 +94,8 @@ class SharpNSLS2 {
 
   float getProbeError();
 
+  float getChiError(); 
+
  public:
 
   // SHARP internal containers

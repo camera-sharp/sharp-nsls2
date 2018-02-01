@@ -98,6 +98,8 @@ class PySharpNSLS2 : public SharpNSLS2 {
 
     float getProbeError();
 
+    float getChiError();   
+
     // Sharp
 
     PyObject* getProducts();

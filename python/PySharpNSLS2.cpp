@@ -187,6 +187,10 @@ float PySharpNSLS2::getProbeError(){
   return SharpNSLS2::getProbeError();  
 }
 
+float PySharpNSLS2::getChiError(){
+  return SharpNSLS2::getChiError();  
+}
+
 // SHARP internal containers
 
 PyObject* PySharpNSLS2::getProducts(){
